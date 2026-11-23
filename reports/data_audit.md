@@ -1,50 +1,78 @@
-# GridGuard — Data audit
+# GridGuard — Dataset provenance, quality, EDA and split audit
 
-**Owner:** Mahij Khantigiri GOSAI  
-**Scope:** Data provenance, exploratory analysis and leakage-aware split design.
+**Module owner:** Mahij Khantigiri GOSAI  
+**Stage:** Dataset preparation / handoff to baseline and model teams  
+**Data:** IEEE-24 simulation extracts provided for the course project  
+**Code:** `src/audit.py` (reproducible; run with `python -m src.audit`)
 
-## Inputs
+## 1. Scope and provenance
 
-The supplied IEEE-24 / PowerGraph extracts contain 1,000 and 19,000 simulated scenarios. The larger ZIP includes a README and source-index mapping; the smaller CSV has no source-index mapping. Reference: [PowerGraph dataset](https://figshare.com/articles/dataset/PowerGraph/22820534).
+The objective is to predict whether a simulated grid scenario results in **any electricity demand not being supplied**. `blackout=1` means unmet demand; it does **not** necessarily imply a national blackout. The supplied files are `Blackout_PowerGraph_1000.csv` (1,000 records) and `Blackout_PowerGraph_19000.zip` (19,000 records). The ZIP's `README.txt` attributes them to **PowerGraph**, IEEE-24, from [Figshare](https://figshare.com/articles/dataset/PowerGraph/22820534), source archive `dataset_cascades.zip` (file ID 50083479). The ZIP also contains `source_indices.json` with 19,000 source indices; the smaller CSV has no source index mapping in the supplied files. Original simulation indices from the two extracts are *claimed* to be non-overlapping; this cannot be verified for the 1,000-row file from the materials available here.
 
-The target `blackout=1` means *some demand remains unsupplied*, not necessarily a nationwide blackout.
+The provided source README notes that the original MATLAB simulation matrices were flattened to 224 input features and numerical values are stored at ten significant digits. Do not assume raw physical units, or call the extracted columns post-failure or pre-failure without independent source verification.
 
-## Verified results (20,000 records)
+## 2. Quality audit — executed results
 
-| Check | Result |
-|---|---:|
-| Input variables | 224 |
-| Class 0 / 1 | 15,968 / 4,032 |
-| Positive rate | 20.16% |
-| Missing values | 0 |
-| Non-finite values | 0 |
-| Unique full feature vectors | 18,579 |
-| Repeated records beyond first | 1,421 |
-| Shared distinct patterns between extracts | 152 |
-| Conflicting labels for identical input vectors | 0 |
+| Check | Observed result |
+|:---|---:|
+| Records combined | 20,000 |
+| Source columns | 225 (224 inputs + `blackout`) |
+| Target 0 / 1 | 15,968 / 4,032 |
+| Positive proportion | 20.16% |
+| Missing cells across features and label | 0 |
+| Infinite or non-finite input cells | 0 |
+| Constant input columns | 0 |
+| Unique complete input patterns | 18,579 |
+| Repeated records beyond first occurrence | 1,421 |
+| Distinct input patterns found in **both** extracts | 152 |
+| Identical input vectors with conflicting labels | 0 |
 
-The 224 inputs consist of three groups of 24 bus measurements and four groups of 38 line measurements. These descriptions reflect the flattened CSV and do not reconstruct the grid topology.
+**Interpretation.** There is no need to invent missing-value imputation for these extracts. Repeated complete feature vectors can artificially inflate an ordinary random split's test score if their copies land in different partitions. The duplicate records were **not** deleted; instead, they are kept together for splitting. Multiple physical scenarios may share a rounded input representation, so they should not be described as proven duplicates of the *underlying* simulation run.
 
-## Split design
+## 3. Exploratory analysis
 
-We assign group IDs from hashes of complete input vectors, then use fixed-seed GroupShuffleSplit candidates. This prevents identical full feature vectors from crossing partitions. We keep duplicate records instead of deleting them.
+The data contain the expected seven feature families: 24 bus net-active-power variables, 24 bus net-apparent-power variables, 24 bus voltage magnitudes, and four groups of 38 line variables (active flow, reactive flow, reactance and rating). These are **descriptions of the flattened dataset**, not a reconstructed network topology.
 
-| Set | Rows | Class-1 rows |
-|---|---:|---:|
-| Training | 13,993 | 2,820 |
-| Validation | 3,010 | 607 |
-| Test | 2,997 | 605 |
+Figures in `figures/`:
+1. `01_target_by_extract.png` — observed target counts per source file.
+2. `02_feature_families.png` — number of features in each family.
+3. `03_duplicate_group_sizes.png` — prevalence of repeated complete input vectors.
+4. `04_univariate_differences.png` — largest standardized mean differences between class labels.
+5. `05_feature_correlations.png` — correlation plot for 25 highest-variance features.
 
-All results come from the completed local audit. Run `python -m src.audit` with both supplied extracts to regenerate the split manifests. The large source ZIP and generated manifests are not stored in GitHub; see README.
+Feature ranking in the fourth figure is **exploratory only**: it uses the combined data, including held-out samples, and must never be used to select training features or tune the model. If feature selection is needed later, use a training-only pipeline fitted inside cross-validation, as highlighted in LAB 4.
 
-## Key limitations
+## 4. Split protocol and results
 
-1. Source documentation supplied with these CSVs does not establish which inputs were available *before* the cascade. Feature timing is still an open leakage risk.
-2. Grouping exact feature matches does not isolate every simulation family or operating-point dependency.
-3. The original dataset is simulated, not a historical record of real-world grid outages.
-4. Label prevalence in this selected simulation sample is not an estimate of the operational event rate.
-5. Descriptive class differences across all records are **not** valid training-time feature selection. Any feature selection must be fitted inside training cross-validation (LAB 4).
+A group ID is assigned from the **complete feature vector**. Candidate 70/15/15 group partitions are generated using fixed seeds; the chosen candidate minimizes split-size and class-prevalence discrepancies. This uses target labels only to balance the partitions, not to optimize a classifier. No duplicated feature vector can cross partitions. Manifest CSVs preserve original row identifiers and, for the 19,000-row subset, provided scenario indices.
 
-## Handoff
+| Partition | Records | Positive cases | Positive rate | Unique feature groups |
+|:---|---:|---:|---:|---:|
+| Training | 13,993 | 2,820 | 20.15% | 13,005 |
+| Validation | 3,010 | 607 | 20.17% | 2,787 |
+| Test | 2,997 | 605 | 20.19% | 2,787 |
 
-Use the generated split manifests for all subsequent experiments, and do not use the test partition for tuning. The existing 1,000-row Decision Tree baseline in this repository uses a different split and cannot be compared directly with future scores from these partitions. This module does not claim a trained or deployed predictive model.
+**Handoff rule:** The model teams must join the manifest to the source rows by `record_id` and fit all preprocessing and any supervised feature selection using training data only. Use the validation partition for model/threshold selection; reserve the test partition for one final locked evaluation. Do not fit scalers, imputers, PCA, feature rankings, or feature selectors using all 20,000 records.
+
+## 5. Risks not resolved by this audit
+
+1. **Feature availability at prediction time (critical):** No supplied documentation proves every feature is known before the disruption outcome; if line-flow or network values come from after a simulated cascade, the project may suffer outcome leakage. Verify feature timing using the original PowerGraph definitions before claiming operational early warning.
+2. **Dependence beyond exact duplicates:** Independent groups of equal 224-dimensional values are isolated, but similar scenarios arising from the same initial state or failure pattern may still appear across splits. The 1,000-row file's original indices are unavailable. Scenario-family grouping would require more source metadata.
+3. **Simulation-to-reality gap:** Results on IEEE-24 simulated data cannot establish real-world dispatch reliability or operational safety.
+4. **Selection bias:** The ZIP README reports proportional target sampling from the source. Reported class proportions and calibrated probabilities may not match actual grid-event frequencies.
+5. **Data representation:** Flattened matrices omit explicit topology and may contain transformed or normalized values; feature interpretations should be checked with the original source.
+6. **Hashing:** Group IDs use pandas 64-bit row hashes; accidental collisions are extremely unlikely but theoretically possible. The underlying source files are kept unchanged so any anomalies can be independently checked.
+
+## 6. Conclusion and handoff
+
+The extracts are internally consistent at the tabular level and suitable for **exploratory supervised classification subject to source verification**. The strongest immediate finding is the need for group-aware splitting, not missing-value cleaning. This module does **not** claim that outcome leakage is ruled out, does **not** train a classifier, and does **not** provide final performance metrics. Those are separate team deliverables.
+
+### Reproduction
+
+```bash
+python -m pip install -r requirements.txt
+python -m src.audit
+python -m pytest -q
+```
+
+Run the notebook from the project root (or open it in Jupyter with the repository root as working directory). All files use relative project paths.
