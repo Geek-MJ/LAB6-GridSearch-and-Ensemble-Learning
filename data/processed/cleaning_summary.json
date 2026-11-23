@@ -57,6 +57,14 @@
     "Blackout_PowerGraph_1000.csv": "44a05f2be05dfa5aefefee4d57317f0b9340a74c9bc1abcaf33845160dfd06d4",
     "Blackout_PowerGraph_19000.zip": "dc2900176059a34ffeebc493d2fb2dfba88386c224b929a8a2ede1817a92ff83"
   },
+  "notes": [
+    "No imputation, outlier clipping, scaling, or feature selection was performed.",
+    "The complete validated version retains all legitimate repeated simulation records.",
+    "The unique-input version retains the first record in each identical-feature group.",
+    "Existing group-disjoint partition assignments are preserved.",
+    "The 224 input columns are retained for training-only feature selection.",
+    "Source documentation does not establish pre-outcome timing for all inputs."
+  ],
   "processed_file_sha256": {
     "validated_20000.csv.gz": "0858bc10ddf41f86ab8a4e4155a85b251e1532e67a37fcf20ac4f85724790afc",
     "unique_18579.csv.gz": "3b64d2f25b76327c0afcf712d50d7d213c21016086ea5e12693576fa760a5647"
