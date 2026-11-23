@@ -1,119 +1,55 @@
-# Blackout Prediction
+# GridGuard — Power Grid Supply Disruption Prediction
 
-## 1. Project Overview
+ESILV Machine Learning project · IEEE-24 / PowerGraph simulations
 
-This project aims to predict blackout events in an electrical power grid using machine learning techniques.
+## Objective
 
-The objective is to identify grid operating conditions that may lead to situations where part of the electricity demand cannot be satisfied.
+Predict whether a simulated grid condition and line-failure scenario will leave any electricity demand unsupplied. The target is `blackout`: **0** = all demand supplied; **1** = some demand unsupplied (not necessarily a nationwide blackout).
 
-## 2. Machine Learning Problem
+## Dataset
 
-This is a **binary classification problem**.
+The provided extracts contain **20,000 records**, **224 numeric inputs** and one binary label. Class 1 occurs in **20.16%** of records. Source: [PowerGraph](https://figshare.com/articles/dataset/PowerGraph/22820534).
 
-The target variable is `blackout`:
+The 1,000-row CSV is committed in `data/`. The separate 19,000-row source ZIP is not uploaded here; put your original `Blackout_PowerGraph_19000.zip` in `data/raw/` to reproduce the full audit.
 
-- `0`: All electricity demand is satisfied.
-- `1`: Part of the electricity demand cannot be satisfied.
+## Current work
 
-The dataset contains 224 explanatory variables describing the power grid conditions.
+| Stage | Status |
+|---|---|
+| Initial Decision Tree baseline | Done on 1,000 rows; see `notebooks/step4_baseline.ipynb` |
+| Data integrity and provenance | Done on both supplied extracts |
+| EDA and grouped 70/15/15 splits | Done locally; audit summary and notebook outputs included |
+| Advanced models and final evaluation | Not started in this module |
 
-## 3. Dataset
+**Audit findings:** no missing values; **1,421 repeated feature records**, including **152 distinct input patterns shared between extracts**; no label conflicts for identical input vectors. Grouped splitting produced **13,993 train / 3,010 validation / 2,997 test** records, without identical full feature vectors crossing sets.
 
-The project currently uses `Blackout_PowerGraph_1000.csv`, containing 1,000 observations.
+The existing baseline's validation scores were obtained using a *different* 1,000-row split. They must not be compared directly with future results from the 20,000-row grouped split.
 
-- Number of observations: 1,000
-- Number of explanatory variables: 224
-- Target variable: `blackout`
-- Missing values: 0
+## Run
 
-Class distribution:
-
-- Class 0: 798 observations (79.8%)
-- Class 1: 202 observations (20.2%)
-
-The dataset source URL and license information will be added after verification.
-
-## 4. Baseline Model
-
-The baseline model is a **Decision Tree Classifier** implemented using scikit-learn.
-
-It was selected because it is simple, interpretable, and capable of capturing non-linear relationships between grid operating conditions and blackout events.
-
-## 5. Data Splitting Strategy
-
-The dataset is divided into three subsets using stratified sampling:
-
-| Subset | Number of samples | Percentage |
-|---|---:|---:|
-| Training | 700 | 70% |
-| Validation | 150 | 15% |
-| Test | 150 | 15% |
-
-The random state is set to 42 to ensure reproducibility.
-
-Stratification preserves the original class distribution across all subsets.
-
-## 6. Evaluation Metrics
-
-The baseline model is evaluated using:
-
-- Accuracy
-- Precision
-- Recall
-- F1-score
-- ROC-AUC
-- Confusion Matrix
-
-Recall and F1-score for the blackout class are particularly important because the dataset is imbalanced.
-
-## 7. Initial Validation Results
-
-The Decision Tree baseline achieved the following validation results:
-
-| Metric | Score |
-|---|---:|
-| Accuracy | 0.9000 |
-| Precision | 0.7586 |
-| Recall | 0.7333 |
-| F1-score | 0.7458 |
-| ROC-AUC | 0.8375 |
-
-Confusion Matrix:
-
-```text
-[[113   7]
- [  8  22]]
-```
-
-The model correctly identified 22 out of 30 blackout cases in the validation set.
-
-The test set has been reserved for final evaluation.
-
-## 8. Project Structure
-
-```text
-.
-├── data/
-│   └── Blackout_PowerGraph_1000.csv
-├── notebooks/
-│   └── step4_baseline.ipynb
-└── README.md
-```
-
-## 9. How to Run
-
-1. Clone this repository.
-2. Install the required Python packages:
+Python 3.12 recommended:
 
 ```bash
-pip install pandas numpy scikit-learn matplotlib seaborn jupyter
+python -m pip install -r requirements.txt
+python -m pytest -q
+python -m src.audit
 ```
 
-3. Open `notebooks/step4_baseline.ipynb` in Jupyter Notebook or VS Code.
-4. Run the notebook cells sequentially.
+For the full audit, keep `data/Blackout_PowerGraph_1000.csv` and add the supplied ZIP at `data/raw/Blackout_PowerGraph_19000.zip`. The audit regenerates `data/splits/*_manifest.csv` and `reports/audit_metrics.json`. Open `notebooks/01_data_audit.ipynb` to see recorded audit outputs; it is a compact results notebook, not the full plotting notebook from the local handoff.
 
-## 10. Current Status
+## Project files
 
-The initial Decision Tree baseline has been implemented and evaluated on the validation set.
+- `notebooks/step4_baseline.ipynb` — original baseline, preserved with outputs.
+- `notebooks/01_data_audit.ipynb` — audit results and saved outputs.
+- `src/audit.py` — input checks and deterministic group-aware split generation.
+- `reports/data_audit.md` — findings, limitations and next steps.
+- `reports/audit_metrics.json` — recorded results of the full-data audit.
+- `tests/` — unit checks for split grouping and reproducibility.
 
-Further model development and comparison will be conducted in subsequent project stages.
+**Important limitation:** Feature timing relative to the simulated failure is not yet established, and grouping identical inputs does not remove all possible dependence between related simulations. Results are about simulated IEEE-24 cases, not verified real-grid outage prediction.
+
+## Team
+
+Mahij Khantigiri GOSAI · Anais KAMTCHOUANG NONO · Soukaina BAHAMI · Yutong CAO
+
+Data audit and split design: **Mahij Khantigiri GOSAI**. Other modules are being developed by the group.
