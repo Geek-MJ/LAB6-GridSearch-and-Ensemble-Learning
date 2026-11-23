@@ -51,4 +51,3 @@ These are simulated IEEE-24 records. Duplicate grouping prevents identical compl
 
 Mahij Khantigiri GOSAI · Anais KAMTCHOUANG NONO · Soukaina BAHAMI · Yutong CAO
 
-Data provenance, EDA, cleaning and split design: **Mahij Khantigiri GOSAI**.
