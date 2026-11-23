@@ -1,0 +1,105 @@
+{
+  "dataset": "PowerGraph IEEE-24 simulated scenarios",
+  "rows": 20000,
+  "input_features": 224,
+  "target": "blackout",
+  "split_sizes": {
+    "train": 13993,
+    "validation": 3010,
+    "test": 2997
+  },
+  "target_counts": {
+    "0": 15968,
+    "1": 4032
+  },
+  "model_selection": {
+    "criterion": "highest validation average precision",
+    "selected_model": "Random_forest",
+    "validation_model_comparison": [
+      {
+        "model": "Random_forest",
+        "validation_average_precision": 0.9810547104667721,
+        "validation_roc_auc": 0.9920548243854983,
+        "validation_recall_at_0_5": 0.9126853377265239,
+        "validation_precision_at_0_5": 0.9535283993115319
+      },
+      {
+        "model": "Decision_tree",
+        "validation_average_precision": 0.9767565146440118,
+        "validation_roc_auc": 0.9866624023649735,
+        "validation_recall_at_0_5": 0.9686985172981878,
+        "validation_precision_at_0_5": 0.930379746835443
+      },
+      {
+        "model": "Logistic_regression",
+        "validation_average_precision": 0.9680854200504397,
+        "validation_roc_auc": 0.9881367401127502,
+        "validation_recall_at_0_5": 0.9588138385502472,
+        "validation_precision_at_0_5": 0.8584070796460177
+      },
+      {
+        "model": "Dummy_prior",
+        "validation_average_precision": 0.2016611295681063,
+        "validation_roc_auc": 0.5,
+        "validation_recall_at_0_5": 0.0,
+        "validation_precision_at_0_5": 0.0
+      }
+    ]
+  },
+  "threshold_selection": {
+    "criterion": "maximum validation F2",
+    "threshold": 0.2771791948869169,
+    "validation_metrics_at_selected_threshold": {
+      "threshold": 0.2771791948869169,
+      "accuracy": 0.9681063122923588,
+      "precision": 0.8948995363214838,
+      "recall": 0.9538714991762768,
+      "f1": 0.9234449760765551,
+      "f2": 0.9414634146341463,
+      "roc_auc": 0.9920548243854983,
+      "average_precision": 0.9810547104667721,
+      "confusion_matrix": [
+        [
+          2335,
+          68
+        ],
+        [
+          28,
+          579
+        ]
+      ]
+    }
+  },
+  "final_test_metrics": {
+    "threshold": 0.2771791948869169,
+    "accuracy": 0.9656322989656323,
+    "precision": 0.8849693251533742,
+    "recall": 0.9537190082644628,
+    "f1": 0.9180588703261734,
+    "f2": 0.9391276041666666,
+    "roc_auc": 0.9932944525829902,
+    "average_precision": 0.984932856145879,
+    "confusion_matrix": [
+      [
+        2317,
+        75
+      ],
+      [
+        28,
+        577
+      ]
+    ]
+  },
+  "test_error_counts": {
+    "false_positives": 75,
+    "false_negatives": 28,
+    "correct": 2894
+  },
+  "caveats": [
+    "All model fitting used training data only.",
+    "Model selection and threshold selection used validation data only.",
+    "The test set was evaluated after the model and threshold were frozen.",
+    "Records are simulated IEEE-24 scenarios, not real-world grid events.",
+    "Source documentation does not establish pre-outcome timing for every input feature."
+  ]
+}
