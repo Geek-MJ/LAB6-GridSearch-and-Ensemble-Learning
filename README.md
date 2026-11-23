@@ -70,4 +70,3 @@ All scenarios are simulated, not real-world outage observations. Input availabil
 
 Mahij Khantigiri GOSAI · Anais KAMTCHOUANG NONO · Soukaina BAHAMI · Yutong CAO
 
-**Module 1 — data provenance, EDA and split design:** Mahij Khantigiri GOSAI.
