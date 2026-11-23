@@ -1,33 +1,58 @@
 # GridGuard — Power Grid Supply Disruption Prediction
 
-ESILV Machine Learning project · IEEE-24 / PowerGraph simulations
+Machine Learning project · ESILV · PowerGraph / IEEE-24
 
-## Objective
+## Problem
 
-Predict whether a simulated grid condition and line-failure scenario will leave any electricity demand unsupplied. The target is `blackout`: **0** = all demand supplied; **1** = some demand unsupplied (not necessarily a nationwide blackout).
+Predict whether a simulated electrical-grid scenario leaves some electricity demand unsupplied.
 
-## Dataset
+- **Inputs:** 224 numerical features describing buses and transmission lines.
+- **Target:** `blackout` — **0** = all demand supplied; **1** = some demand unsupplied. A positive label does not necessarily mean a nationwide blackout.
+- **Source:** [PowerGraph](https://figshare.com/articles/dataset/PowerGraph/22820534).
 
-The provided extracts contain **20,000 records**, **224 numeric inputs** and one binary label. Class 1 occurs in **20.16%** of records. Source: [PowerGraph](https://figshare.com/articles/dataset/PowerGraph/22820534).
+## Progress
 
-The 1,000-row CSV is committed in `data/`. The separate 19,000-row source ZIP is not uploaded here; put your original `Blackout_PowerGraph_19000.zip` in `data/raw/` to reproduce the full audit.
-
-## Current work
-
-| Stage | Status |
+| Work | Status |
 |---|---|
-| Initial Decision Tree baseline | Done on 1,000 rows; see `notebooks/step4_baseline.ipynb` |
-| Data integrity and provenance | Done on both supplied extracts |
-| EDA and grouped 70/15/15 splits | Done locally; audit summary and notebook outputs included |
-| Advanced models and final evaluation | Not started in this module |
+| Initial Decision Tree baseline (1,000 rows) | Completed; saved outputs in `notebooks/step4_baseline.ipynb` |
+| Data audit and exploratory analysis (20,000 rows) | Completed; saved outputs in `notebooks/01_data_audit_executed.ipynb` |
+| Leakage-aware train/validation/test manifests | Completed |
+| Advanced model comparison | Not yet completed |
 
-**Audit findings:** no missing values; **1,421 repeated feature records**, including **152 distinct input patterns shared between extracts**; no label conflicts for identical input vectors. Grouped splitting produced **13,993 train / 3,010 validation / 2,997 test** records, without identical full feature vectors crossing sets.
+The two supplied extracts contain **20,000 records**, with **4,032 positive labels (20.16%)**. The audit found **zero missing values**, **1,421 repeated input records**, **152 distinct feature patterns shared across extracts**, and **no conflicting labels for identical inputs**.
 
-The existing baseline's validation scores were obtained using a *different* 1,000-row split. They must not be compared directly with future results from the 20,000-row grouped split.
+The split groups identical complete feature vectors so they cannot appear in different partitions:
 
-## Run
+| Partition | Records | Positive |
+|---|---:|---:|
+| Train | 13,993 | 2,820 |
+| Validation | 3,010 | 607 |
+| Test | 2,997 | 605 |
 
-Python 3.12 recommended:
+The existing Decision Tree validation results use a separate 1,000-row split; do not compare them directly against new grouped-split results.
+
+## Repository
+
+```text
+data/
+  Blackout_PowerGraph_1000.csv
+  raw/Blackout_PowerGraph_19000.zip
+  splits/                      # saved record-level split manifests
+figures/                       # five EDA charts
+notebooks/
+  01_data_audit_executed.ipynb # executed audit and plots
+  step4_baseline.ipynb         # original baseline
+reports/
+  audit_metrics.json
+  data_audit.md
+src/audit.py                   # reproducible audit, plots and split generation
+tests/test_splits.py           # input quality and split checks
+requirements.txt
+```
+
+## Run locally
+
+Python 3.12 is recommended. From the repository root:
 
 ```bash
 python -m pip install -r requirements.txt
@@ -35,21 +60,14 @@ python -m pytest -q
 python -m src.audit
 ```
 
-For the full audit, keep `data/Blackout_PowerGraph_1000.csv` and add the supplied ZIP at `data/raw/Blackout_PowerGraph_19000.zip`. The audit regenerates `data/splits/*_manifest.csv` and `reports/audit_metrics.json`. Open `notebooks/01_data_audit.ipynb` to see recorded audit outputs; it is a compact results notebook, not the full plotting notebook from the local handoff.
+The audit reads the committed CSV and ZIP, regenerates `data/splits/` and `figures/`, and refreshes the metrics report. The notebooks retain their saved outputs on GitHub.
 
-## Project files
+## Limitations
 
-- `notebooks/step4_baseline.ipynb` — original baseline, preserved with outputs.
-- `notebooks/01_data_audit.ipynb` — audit results and saved outputs.
-- `src/audit.py` — input checks and deterministic group-aware split generation.
-- `reports/data_audit.md` — findings, limitations and next steps.
-- `reports/audit_metrics.json` — recorded results of the full-data audit.
-- `tests/` — unit checks for split grouping and reproducibility.
-
-**Important limitation:** Feature timing relative to the simulated failure is not yet established, and grouping identical inputs does not remove all possible dependence between related simulations. Results are about simulated IEEE-24 cases, not verified real-grid outage prediction.
+All scenarios are simulated, not real-world outage observations. Input availability before the simulated cascade has not been independently verified. Grouping exact input duplicates prevents that form of overlap, but related scenarios may still be dependent. Exploratory feature differences are descriptive, not proof of causation or validated feature selection.
 
 ## Team
 
 Mahij Khantigiri GOSAI · Anais KAMTCHOUANG NONO · Soukaina BAHAMI · Yutong CAO
 
-Data audit and split design: **Mahij Khantigiri GOSAI**. Other modules are being developed by the group.
+**Module 1 — data provenance, EDA and split design:** Mahij Khantigiri GOSAI.
