@@ -1,72 +1,54 @@
 # GridGuard — Power Grid Supply Disruption Prediction
 
-Machine Learning project · ESILV · PowerGraph / IEEE-24
+ESILV · Machine Learning · PowerGraph / IEEE-24
 
 ## Problem
 
-Predict whether a simulated electrical-grid scenario leaves some electricity demand unsupplied.
+Predict whether a simulated grid condition and line-failure scenario leaves some electricity demand unsupplied. The binary target is `blackout`: **0** = all demand supplied; **1** = some demand unsupplied, not necessarily a nationwide blackout.
 
-- **Inputs:** 224 numerical features describing buses and transmission lines.
-- **Target:** `blackout` — **0** = all demand supplied; **1** = some demand unsupplied. A positive label does not necessarily mean a nationwide blackout.
-- **Source:** [PowerGraph](https://figshare.com/articles/dataset/PowerGraph/22820534).
+**Dataset:** [PowerGraph](https://figshare.com/articles/dataset/PowerGraph/22820534) · 20,000 simulated records · 224 numerical inputs · 20.16% positive labels.
 
-## Progress
+## Work completed
 
-| Work | Status |
+| Module | Output |
 |---|---|
-| Initial Decision Tree baseline (1,000 rows) | Completed; saved outputs in `notebooks/step4_baseline.ipynb` |
-| Data audit and exploratory analysis (20,000 rows) | Completed; saved outputs in `notebooks/01_data_audit_executed.ipynb` |
-| Leakage-aware train/validation/test manifests | Completed |
-| Advanced model comparison | Not yet completed |
+| Data audit and EDA | [Executed notebook](notebooks/01_data_audit_executed.ipynb), [figures](figures/), [audit](reports/data_audit.md) |
+| Data cleaning | [Pipeline](src/clean_data.py), [cleaning report](reports/cleaning.md), [summary](data/processed/cleaning_summary.json) |
+| Split design | [Grouped 70/15/15 manifests](data/splits/) |
+| Initial Decision Tree baseline | [Notebook with outputs](notebooks/step4_baseline.ipynb) (earlier 1,000-row split) |
+| Feature selection / advanced models | Planned |
 
-The two supplied extracts contain **20,000 records**, with **4,032 positive labels (20.16%)**. The audit found **zero missing values**, **1,421 repeated input records**, **152 distinct feature patterns shared across extracts**, and **no conflicting labels for identical inputs**.
+**Cleaning:** No missing or infinite values. There are 1,421 repeated feature rows and 18,579 unique feature vectors. The primary validated dataset keeps all 20,000 scenarios. An optional deduplicated dataset keeps 18,579. Both retain 224 variables; no scaling or feature selection has been done outside training.
 
-The split groups identical complete feature vectors so they cannot appear in different partitions:
+## Data files
 
-| Partition | Records | Positive |
-|---|---:|---:|
-| Train | 13,993 | 2,820 |
-| Validation | 3,010 | 607 |
-| Test | 2,997 | 605 |
+- `data/Blackout_PowerGraph_1000.csv` and `data/raw/Blackout_PowerGraph_19000.zip` — unchanged sources.
+- `data/processed/validated_20000.csv.gz` — validated full dataset.
+- `data/processed/unique_18579.csv.gz` — optional deduplicated dataset.
+- `data/processed/unique_records_manifest.csv` — original IDs and preserved split assignments.
+- `data/processed/cleaning_summary.json` — evidence and hashes.
 
-The existing Decision Tree validation results use a separate 1,000-row split; do not compare them directly against new grouped-split results.
+The cleaning script generates the processed files from the committed raw datasets. **Use the original 20,000-row split for the main study**, and evaluate the deduplicated version separately as a sensitivity analysis. The earlier Decision Tree baseline used a different split and is not directly comparable.
 
-## Repository
+## Reproduce
 
-```text
-data/
-  Blackout_PowerGraph_1000.csv
-  raw/Blackout_PowerGraph_19000.zip
-  splits/                      # saved record-level split manifests
-figures/                       # five EDA charts
-notebooks/
-  01_data_audit_executed.ipynb # executed audit and plots
-  step4_baseline.ipynb         # original baseline
-reports/
-  audit_metrics.json
-  data_audit.md
-src/audit.py                   # reproducible audit, plots and split generation
-tests/test_splits.py           # input quality and split checks
-requirements.txt
-```
-
-## Run locally
-
-Python 3.12 is recommended. From the repository root:
+Python 3.12 recommended. From the repository root:
 
 ```bash
 python -m pip install -r requirements.txt
 python -m pytest -q
 python -m src.audit
+python -m src.clean_data
 ```
 
-The audit reads the committed CSV and ZIP, regenerates `data/splits/` and `figures/`, and refreshes the metrics report. The notebooks retain their saved outputs on GitHub.
+For the processed CSVs, read `pd.read_csv("data/processed/validated_20000.csv.gz")` or the unique version. Always join split assignments through the provided record IDs/manifest; don't randomly resplit the cleaned data.
 
-## Limitations
+## Limits
 
-All scenarios are simulated, not real-world outage observations. Input availability before the simulated cascade has not been independently verified. Grouping exact input duplicates prevents that form of overlap, but related scenarios may still be dependent. Exploratory feature differences are descriptive, not proof of causation or validated feature selection.
+These are simulated IEEE-24 records. Duplicate grouping prevents identical complete inputs crossing partitions but does not guarantee independent simulation families. Source feature timing relative to failures still needs verification. Any scaling, feature selection or model tuning must fit on training data only.
 
 ## Team
 
 Mahij Khantigiri GOSAI · Anais KAMTCHOUANG NONO · Soukaina BAHAMI · Yutong CAO
 
+Data provenance, EDA, cleaning and split design: **Mahij Khantigiri GOSAI**.
