@@ -1,0 +1,30 @@
+{
+  "records": 20000,
+  "input_features": 224,
+  "target_counts": {
+    "0": 15968,
+    "1": 4032
+  },
+  "positive_rate": 0.2016,
+  "missing_cells": 0,
+  "nonfinite_input_cells": 0,
+  "unique_feature_vectors": 18579,
+  "repeated_feature_records": 1421,
+  "shared_feature_patterns_between_extracts": 152,
+  "conflicting_labels": 0,
+  "chosen_seed_offset": 88,
+  "splits": {
+    "train": {
+      "records": 13993,
+      "positive": 2820
+    },
+    "validation": {
+      "records": 3010,
+      "positive": 607
+    },
+    "test": {
+      "records": 2997,
+      "positive": 605
+    }
+  }
+}
