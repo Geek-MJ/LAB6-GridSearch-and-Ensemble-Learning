@@ -1,30 +1,72 @@
 {
-  "records": 20000,
+  "rows": 20000,
+  "columns_in_source": 225,
   "input_features": 224,
   "target_counts": {
     "0": 15968,
     "1": 4032
   },
   "positive_rate": 0.2016,
+  "feature_families": {
+    "line_reactance": 38,
+    "line_reactive_power_flow": 38,
+    "line_active_power_flow": 38,
+    "line_rating": 38,
+    "bus_voltage_magnitude": 24,
+    "bus_net_active_power": 24,
+    "bus_net_apparent_power": 24
+  },
   "missing_cells": 0,
   "nonfinite_input_cells": 0,
+  "constant_columns": [],
   "unique_feature_vectors": 18579,
-  "repeated_feature_records": 1421,
-  "shared_feature_patterns_between_extracts": 152,
-  "conflicting_labels": 0,
-  "chosen_seed_offset": 88,
-  "splits": {
+  "repeated_records": 1421,
+  "exact_duplicate_full_records": 1421,
+  "conflicting_labels_for_identical_inputs": 0,
+  "shared_distinct_feature_vectors_between_extracts": 152,
+  "source_index_unique_in_19000": true,
+  "source_index_available_in_1000": false,
+  "split_choice_seed_offset": 88,
+  "split": {
     "train": {
-      "records": 13993,
-      "positive": 2820
+      "rows": 13993,
+      "share": 0.69965,
+      "positive_count": 2820,
+      "positive_rate": 0.20153,
+      "unique_feature_groups": 13005
     },
     "validation": {
-      "records": 3010,
-      "positive": 607
+      "rows": 3010,
+      "share": 0.1505,
+      "positive_count": 607,
+      "positive_rate": 0.20166,
+      "unique_feature_groups": 2787
     },
     "test": {
-      "records": 2997,
-      "positive": 605
+      "rows": 2997,
+      "share": 0.14985,
+      "positive_count": 605,
+      "positive_rate": 0.20187,
+      "unique_feature_groups": 2787
     }
-  }
+  },
+  "top_univariate_differences": {
+    "line_5_reactive_power_flow": 1.32438,
+    "line_22_active_power_flow": 1.16358,
+    "bus_8_net_apparent_power": 1.14725,
+    "bus_9_net_apparent_power": 1.14153,
+    "bus_3_net_apparent_power": 1.13204,
+    "bus_10_voltage_magnitude": 1.13133,
+    "bus_2_net_apparent_power": 1.1308,
+    "bus_19_net_apparent_power": 1.12986,
+    "line_23_reactive_power_flow": 1.12768,
+    "line_20_reactive_power_flow": 1.12274,
+    "bus_3_voltage_magnitude": 1.11406,
+    "line_24_reactive_power_flow": 1.11018,
+    "line_4_reactive_power_flow": 1.10879,
+    "bus_23_voltage_magnitude": 1.09972,
+    "bus_10_net_apparent_power": 1.09153
+  },
+  "known_source_url": "https://figshare.com/articles/dataset/PowerGraph/22820534",
+  "source_archive_file_id": 50083479
 }
