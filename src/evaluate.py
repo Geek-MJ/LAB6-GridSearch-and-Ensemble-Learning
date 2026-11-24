@@ -1,10 +1,16 @@
 
-"""Full evaluation protocol for the GridGuard PowerGraph dataset.
+"""Evaluation protocol following Anais's GridGuard methodology.
 
 Run from the repository root:
     python -m src.evaluate
 
-Uses the official train/validation/test assignments.
+Protocol:
+1. Stratified 80/20 train-pool/test split.
+2. GroupShuffleSplit on the train pool to create validation.
+3. StratifiedGroupKFold CV for Random Forest tuning.
+4. Recall-based hyperparameter selection.
+5. Random Forest with all features and threshold 0.50.
+6. Final test evaluation after model selection.
 """
 
 from __future__ import annotations
@@ -26,776 +32,725 @@ from sklearn.metrics import (
     accuracy_score,
     average_precision_score,
     confusion_matrix,
-    fbeta_score,
-    precision_recall_curve,
+    f1_score,
     precision_score,
     recall_score,
     roc_auc_score,
-    RocCurveDisplay,
-    PrecisionRecallDisplay,
     ConfusionMatrixDisplay,
+    PrecisionRecallDisplay,
 )
-from sklearn.pipeline import make_pipeline
+from sklearn.model_selection import (
+    train_test_split,
+    GroupShuffleSplit,
+    StratifiedGroupKFold,
+    GridSearchCV,
+)
+from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.tree import DecisionTreeClassifier
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
 DATA_PATH = ROOT / "data" / "processed" / "validated_20000.csv.gz"
 MANIFEST_PATH = ROOT / "data" / "splits" / "all_records_manifest.csv"
-SPLIT_DIR = ROOT / "data" / "splits"
-OUTPUT_DIR = ROOT / "reports" / "evaluation"
-FIGURE_DIR = ROOT / "figures" / "evaluation"
+
+OUTPUT_DIR = ROOT / "reports" / "evaluation_anais"
+FIGURE_DIR = ROOT / "figures" / "evaluation_anais"
 
 TARGET = "blackout"
 RANDOM_STATE = 42
+THRESHOLD = 0.50
 
 
-def load_and_validate_data():
-    """Load data and validate the official manifests."""
+def load_data():
+    """Load the dataset and verify its alignment with the manifest."""
 
     if not DATA_PATH.is_file():
-        raise FileNotFoundError(f"Missing processed dataset: {DATA_PATH}")
+        raise FileNotFoundError(DATA_PATH)
 
     if not MANIFEST_PATH.is_file():
-        raise FileNotFoundError(f"Missing official manifest: {MANIFEST_PATH}")
+        raise FileNotFoundError(MANIFEST_PATH)
 
-    # IMPORTANT:
-    # round_trip preserves the exact floating-point values
-    # used to generate the official feature hashes.
-    data = pd.read_csv(
-        DATA_PATH,
-        float_precision="round_trip"
-    )
-
+    data = pd.read_csv(DATA_PATH)
     manifest = pd.read_csv(
         MANIFEST_PATH,
-        dtype={"input_hash_uint64": "string"}
+        dtype={"input_hash_uint64": "string"},
     )
 
-    required = {
-        "record_id",
-        "source_extract",
-        "source_scenario_index",
-        TARGET,
-        "split",
-        "input_hash_uint64",
-    }
+    if len(data) != 20000:
+        raise ValueError(f"Expected 20,000 rows, got {len(data)}.")
 
-    missing = required - set(manifest.columns)
-
-    if missing:
-        raise ValueError(
-            f"Manifest is missing columns: {sorted(missing)}"
-        )
+    if len(manifest) != len(data):
+        raise ValueError("Dataset and manifest have different row counts.")
 
     if TARGET not in data.columns:
-        raise ValueError(
-            f"Dataset has no target column '{TARGET}'."
-        )
+        raise ValueError(f"Missing target column: {TARGET}")
 
-    if len(data) != 20000 or len(manifest) != len(data):
-        raise ValueError(
-            f"Expected 20,000 aligned records; "
-            f"got data={len(data)}, manifest={len(manifest)}."
-        )
-
-    if not manifest["record_id"].is_unique:
-        raise ValueError(
-            "Duplicate record_id values in all_records_manifest.csv."
-        )
-
-    # Check target-label alignment.
     if not manifest[TARGET].reset_index(drop=True).equals(
         data[TARGET].reset_index(drop=True)
     ):
-        raise ValueError(
-            "Manifest labels do not match dataset row order. "
-            "Stop: do not train."
-        )
+        raise ValueError("Target labels do not match manifest row order.")
 
-    if set(manifest["split"].unique()) != {
-        "train", "validation", "test"
-    }:
-        raise ValueError(
-            "Unexpected or missing split labels in the full manifest."
-        )
-
-    # Verify that partition files match the full manifest.
-    for split in ("train", "validation", "test"):
-
-        part_path = SPLIT_DIR / f"{split}_manifest.csv"
-
-        if not part_path.is_file():
-            raise FileNotFoundError(
-                f"Missing split file: {part_path}"
-            )
-
-        part = pd.read_csv(
-            part_path,
-            dtype={"input_hash_uint64": "string"}
-        )
-
-        expected_ids = set(
-            manifest.loc[
-                manifest["split"] == split,
-                "record_id"
-            ]
-        )
-
-        actual_ids = set(part["record_id"])
-
-        if (
-            actual_ids != expected_ids
-            or len(part) != len(expected_ids)
-        ):
-            raise ValueError(
-                f"{split}_manifest.csv does not match "
-                "all_records_manifest.csv."
-            )
-
-        if not part["record_id"].is_unique:
-            raise ValueError(
-                f"Duplicate IDs in {part_path.name}."
-            )
-
-    # Identical feature vectors must not cross partitions.
-    split_count_by_hash = (
-        manifest.groupby("input_hash_uint64")["split"].nunique()
-    )
-
-    if split_count_by_hash.max() != 1:
-        raise ValueError(
-            "Identical feature vectors cross data partitions."
-        )
-
-    # Identify the 224 input features.
-    features = [
-        column for column in data.columns
-        if column != TARGET
-    ]
+    features = [c for c in data.columns if c != TARGET]
 
     if len(features) != 224:
-        raise ValueError(
-            f"Expected 224 input features; found {len(features)}."
-        )
+        raise ValueError(f"Expected 224 features, got {len(features)}.")
 
-    # Verify exact feature-row alignment.
-    feature_hashes = pd.util.hash_pandas_object(
-        data[features],
-        index=False
-    ).astype(str)
-
-    if not (
-        manifest["input_hash_uint64"].astype(str)
-        == feature_hashes
-    ).all():
-        raise ValueError(
-            "Manifest feature hashes do not match dataset row order. "
-            "Stop: do not train."
-        )
+    if not data[TARGET].isin([0, 1]).all():
+        raise ValueError("Target must contain only 0 and 1.")
 
     if data[features].isna().to_numpy().any():
         raise ValueError("Missing feature values detected.")
 
-    if not np.isfinite(
-        data[features].to_numpy(dtype=float)
+    if not np.isfinite(data[features].to_numpy(dtype=float)).all():
+        raise ValueError("Non-finite feature values detected.")
+
+    # Verify the feature values and row order against the manifest.
+    feature_hashes = pd.util.hash_pandas_object(
+        data[features],
+        index=False,
+    ).astype(str)
+
+    if not (
+        feature_hashes.to_numpy()
+        == manifest["input_hash_uint64"].astype(str).to_numpy()
     ).all():
-        raise ValueError(
-            "Infinite or non-numeric feature values detected."
-        )
+        raise ValueError("Feature hashes do not match the manifest.")
 
-    if not data[TARGET].isin([0, 1]).all():
-        raise ValueError(
-            "Target must contain only 0 and 1."
-        )
+    bus_columns = [c for c in features if c.startswith("bus_")]
 
-    print("Data validation successful.")
-    print("All 20,000 feature hashes match the official manifest.")
+    if not bus_columns:
+        raise ValueError("No bus_ columns found for group construction.")
 
-    return data, manifest, features
+    if len(bus_columns) != 72:
+        print(f"WARNING: Found {len(bus_columns)} bus features, not 72.")
+
+    print("Dataset validation successful.")
+    print("Rows:", len(data))
+    print("Features:", len(features))
+    print("Bus features:", len(bus_columns))
+    print("Target distribution:")
+    print(data[TARGET].value_counts().sort_index())
+
+    return data, manifest, features, bus_columns
 
 
-def metrics_at_threshold(y_true, probabilities, threshold):
+def get_metrics(y_true, probabilities, threshold=THRESHOLD):
+    """Calculate classification metrics at a fixed threshold."""
 
-    predictions = (
-        probabilities >= threshold
-    ).astype(int)
+    predictions = (probabilities >= threshold).astype(int)
 
     return {
         "threshold": float(threshold),
-
-        "accuracy": float(
-            accuracy_score(y_true, predictions)
-        ),
-
+        "accuracy": float(accuracy_score(y_true, predictions)),
         "precision": float(
-            precision_score(
-                y_true,
-                predictions,
-                zero_division=0
-            )
+            precision_score(y_true, predictions, zero_division=0)
         ),
-
         "recall": float(
-            recall_score(
-                y_true,
-                predictions,
-                zero_division=0
-            )
+            recall_score(y_true, predictions, zero_division=0)
         ),
-
-        "f1": float(
-            fbeta_score(
-                y_true,
-                predictions,
-                beta=1,
-                zero_division=0
-            )
-        ),
-
-        "f2": float(
-            fbeta_score(
-                y_true,
-                predictions,
-                beta=2,
-                zero_division=0
-            )
-        ),
-
-        "roc_auc": float(
-            roc_auc_score(y_true, probabilities)
-        ),
-
+        "f1": float(f1_score(y_true, predictions, zero_division=0)),
+        "roc_auc": float(roc_auc_score(y_true, probabilities)),
         "average_precision": float(
-            average_precision_score(
-                y_true,
-                probabilities
-            )
+            average_precision_score(y_true, probabilities)
         ),
-
         "confusion_matrix": confusion_matrix(
-            y_true,
-            predictions
+            y_true, predictions, labels=[0, 1]
         ).tolist(),
     }
 
 
-def choose_f2_threshold(y_true, probabilities):
-    """Choose threshold maximizing F2 on validation data only."""
-
-    precision, recall, thresholds = precision_recall_curve(
-        y_true,
-        probabilities
-    )
-
-    if len(thresholds) == 0:
-        return 0.5, 0.0
-
-    p = precision[:-1]
-    r = recall[:-1]
-
-    f2 = np.divide(
-        5 * p * r,
-        4 * p + r,
-        out=np.zeros_like(p),
-        where=(4 * p + r) != 0
-    )
-
-    best_index = int(np.argmax(f2))
-
-    return (
-        float(thresholds[best_index]),
-        float(f2[best_index])
-    )
-
-
 def main():
 
-    OUTPUT_DIR.mkdir(
-        parents=True,
-        exist_ok=True
-    )
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    FIGURE_DIR.mkdir(parents=True, exist_ok=True)
 
-    FIGURE_DIR.mkdir(
-        parents=True,
-        exist_ok=True
-    )
+    # ---------------------------------------------------------
+    # 1. LOAD AND VALIDATE DATA
+    # ---------------------------------------------------------
 
-    # Load and validate the dataset.
-    data, manifest, features = load_and_validate_data()
+    data, manifest, features, bus_columns = load_data()
 
     X = data[features]
     y = data[TARGET].astype(int)
 
-    split = manifest["split"]
+    # ---------------------------------------------------------
+    # 2. INITIAL STRATIFIED 80/20 SPLIT
+    # ---------------------------------------------------------
 
-    train_idx = split.eq("train")
-    validation_idx = split.eq("validation")
-    test_idx = split.eq("test")
+    all_indices = np.arange(len(data))
 
-    X_train = X.loc[train_idx]
-    y_train = y.loc[train_idx]
-
-    X_val = X.loc[validation_idx]
-    y_val = y.loc[validation_idx]
-
-    X_test = X.loc[test_idx]
-    y_test = y.loc[test_idx]
-
-    test_manifest = (
-        manifest.loc[test_idx].reset_index(drop=True)
+    train_pool_idx, test_idx = train_test_split(
+        all_indices,
+        test_size=0.20,
+        random_state=RANDOM_STATE,
+        stratify=y,
     )
 
-    # Display official split information.
-    print("\n========== OFFICIAL DATA SPLITS ==========")
+    X_pool = X.iloc[train_pool_idx].copy()
+    y_pool = y.iloc[train_pool_idx].copy()
 
-    for name, mask in (
-        ("train", train_idx),
-        ("validation", validation_idx),
-        ("test", test_idx),
-    ):
+    X_test = X.iloc[test_idx].copy()
+    y_test = y.iloc[test_idx].copy()
 
-        labels = y.loc[mask]
+    test_manifest = manifest.iloc[test_idx].reset_index(drop=True)
 
+    # ---------------------------------------------------------
+    # 3. GROUP-BASED TRAIN / VALIDATION SPLIT
+    # ---------------------------------------------------------
+
+    groups_pool = pd.util.hash_pandas_object(
+        X_pool[bus_columns],
+        index=False,
+    ).to_numpy()
+
+    group_splitter = GroupShuffleSplit(
+        n_splits=1,
+        test_size=0.20,
+        random_state=RANDOM_STATE,
+    )
+
+    train_idx, val_idx = next(
+        group_splitter.split(X_pool, y_pool, groups=groups_pool)
+    )
+
+    X_train = X_pool.iloc[train_idx].copy()
+    y_train = y_pool.iloc[train_idx].copy()
+    groups_train = groups_pool[train_idx]
+
+    X_val = X_pool.iloc[val_idx].copy()
+    y_val = y_pool.iloc[val_idx].copy()
+    groups_val = groups_pool[val_idx]
+
+    # Verify that training and validation groups are separate.
+    train_val_overlap = len(
+        set(groups_train).intersection(set(groups_val))
+    )
+
+    if train_val_overlap:
+        raise ValueError("Group overlap detected between train and validation.")
+
+    print("\n========== DATA SPLITS ==========")
+
+    for name, labels in [
+        ("Train", y_train),
+        ("Validation", y_val),
+        ("Test", y_test),
+    ]:
         print(
-            f"{name:10s}: {len(labels):5d} rows | "
-            f"blackout rate={labels.mean():.3%} | "
-            f"class counts="
-            f"{labels.value_counts().sort_index().to_dict()}"
+            f"{name:12s}: {len(labels):5d} records | "
+            f"blackout rate: {labels.mean():.3%} | "
+            f"classes: {labels.value_counts().sort_index().to_dict()}"
         )
 
-    # Define the candidate models.
-    models = {
+    print("Train/validation group overlap:", train_val_overlap)
 
-        "Dummy_prior": DummyClassifier(
-            strategy="prior"
-        ),
+    # The outer split follows Anais's stratified random split.
+    # It is not group-aware, so test group overlap is reported.
+    groups_test = pd.util.hash_pandas_object(
+        X_test[bus_columns],
+        index=False,
+    ).to_numpy()
+
+    train_test_overlap = len(
+        set(groups_train).intersection(set(groups_test))
+    )
+
+    pool_test_overlap = len(
+        set(groups_pool).intersection(set(groups_test))
+    )
+
+    print("Train/test group overlap:", train_test_overlap)
+    print("Pool/test group overlap:", pool_test_overlap)
+
+    # ---------------------------------------------------------
+    # 4. GROUP-AWARE CROSS-VALIDATION
+    # ---------------------------------------------------------
+
+    cv = StratifiedGroupKFold(
+        n_splits=5,
+        shuffle=True,
+        random_state=RANDOM_STATE,
+    )
+
+    # Anais's pipeline and parameter grid.
+    pipeline = Pipeline([
+        ("scaler", StandardScaler()),
+        ("model", RandomForestClassifier(random_state=RANDOM_STATE)),
+    ])
+
+    param_grid = {
+        "model__n_estimators": [2, 4, 6],
+        "model__max_depth": [4, 8, 11, None],
+        "model__min_samples_split": [2, 4, 6],
+        "model__min_samples_leaf": [2, 3, 5, 7],
+        "model__max_features": [200, 30, 100, 225],
+        "model__class_weight": [None, "balanced"],
+    }
+
+    print("\n========== RANDOM FOREST GRID SEARCH ==========")
+    print("Scoring: recall")
+    print("Cross-validation: 5-fold StratifiedGroupKFold")
+    print("Parameter combinations:", 1152)
+    print("Expected fits:", 5760)
+
+    grid_search = GridSearchCV(
+        estimator=pipeline,
+        param_grid=param_grid,
+        scoring="recall",
+        cv=cv,
+        n_jobs=-1,
+        refit=True,
+        error_score="raise",
+        verbose=1,
+    )
+
+    grid_search.fit(
+        X_train,
+        y_train,
+        groups=groups_train,
+    )
+
+    print("\nBest parameters:")
+    print(grid_search.best_params_)
+
+    print(
+        "Best mean cross-validation recall:",
+        round(grid_search.best_score_, 4),
+    )
+
+    # ---------------------------------------------------------
+    # 5. VALIDATION MODEL COMPARISON
+    # ---------------------------------------------------------
+
+    models = {
+        "Dummy_prior": DummyClassifier(strategy="prior"),
 
         "Decision_tree": DecisionTreeClassifier(
             random_state=RANDOM_STATE,
             class_weight="balanced",
-            min_samples_leaf=5
+            min_samples_leaf=5,
         ),
 
-        "Logistic_regression": make_pipeline(
-            StandardScaler(),
-            LogisticRegression(
+        "Logistic_regression": Pipeline([
+            ("scaler", StandardScaler()),
+            ("model", LogisticRegression(
                 max_iter=2000,
                 class_weight="balanced",
-                random_state=RANDOM_STATE
-            )
-        ),
+                random_state=RANDOM_STATE,
+            )),
+        ]),
 
-        "Random_forest": RandomForestClassifier(
-            n_estimators=400,
-            min_samples_leaf=2,
-            class_weight="balanced_subsample",
-            random_state=RANDOM_STATE,
-            n_jobs=-1
-        ),
+        "Random_forest_Anais": grid_search.best_estimator_,
     }
 
-    fitted_models = {}
-    validation_probabilities = {}
     comparison_rows = []
+    validation_probabilities = {}
+    fitted_models = {}
 
-    # Train models using training data only.
     for name, model in models.items():
 
-        print(f"\nTraining {name} ...")
+        print(f"\nEvaluating {name} on validation...")
 
-        model.fit(X_train, y_train)
+        if name != "Random_forest_Anais":
+            model.fit(X_train, y_train)
 
         probabilities = model.predict_proba(X_val)[:, 1]
 
         fitted_models[name] = model
         validation_probabilities[name] = probabilities
 
+        metrics = get_metrics(y_val, probabilities, THRESHOLD)
+
         comparison_rows.append({
-
             "model": name,
-
-            "validation_average_precision":
-                average_precision_score(
-                    y_val,
-                    probabilities
-                ),
-
-            "validation_roc_auc":
-                roc_auc_score(
-                    y_val,
-                    probabilities
-                ),
-
-            "validation_recall_at_0_5":
-                recall_score(
-                    y_val,
-                    (probabilities >= 0.5).astype(int),
-                    zero_division=0
-                ),
-
-            "validation_precision_at_0_5":
-                precision_score(
-                    y_val,
-                    (probabilities >= 0.5).astype(int),
-                    zero_division=0
-                ),
+            "validation_recall": metrics["recall"],
+            "validation_precision": metrics["precision"],
+            "validation_f1": metrics["f1"],
+            "validation_average_precision": metrics["average_precision"],
+            "validation_roc_auc": metrics["roc_auc"],
+            "threshold": THRESHOLD,
         })
 
-        print(
-            f"Validation AP="
-            f"{comparison_rows[-1]['validation_average_precision']:.4f}, "
-            f"ROC-AUC="
-            f"{comparison_rows[-1]['validation_roc_auc']:.4f}"
-        )
-
-    # Compare models using validation average precision.
-    comparison = pd.DataFrame(
-        comparison_rows
-    ).sort_values(
-        "validation_average_precision",
-        ascending=False
+    comparison = pd.DataFrame(comparison_rows).sort_values(
+        ["validation_recall", "validation_precision"],
+        ascending=False,
     )
 
     comparison.to_csv(
         OUTPUT_DIR / "validation_model_comparison.csv",
-        index=False
+        index=False,
     )
 
-    # Select the best model using validation data only.
-    selected_name = str(
-        comparison.iloc[0]["model"]
-    )
+    print("\n========== VALIDATION MODEL COMPARISON ==========")
+    print(comparison.to_string(index=False, float_format=lambda x: f"{x:.4f}"))
 
+    # Follow Anais's final decision: Random Forest with all features.
+    selected_name = "Random_forest_Anais"
     selected_model = fitted_models[selected_name]
 
-    selected_val_prob = validation_probabilities[
-        selected_name
-    ]
+    selected_val_prob = validation_probabilities[selected_name]
 
-    # Select threshold using validation F2.
-    selected_threshold, validation_best_f2 = (
-        choose_f2_threshold(
-            y_val,
-            selected_val_prob
-        )
+    # ---------------------------------------------------------
+    # 6. VALIDATION THRESHOLD ANALYSIS
+    # ---------------------------------------------------------
+
+    threshold_rows = []
+
+    for threshold in np.round(np.arange(0.05, 0.55, 0.05), 2):
+
+        metrics = get_metrics(y_val, selected_val_prob, float(threshold))
+
+        tn, fp, fn, tp = np.array(
+            metrics["confusion_matrix"]
+        ).ravel()
+
+        threshold_rows.append({
+            "threshold": float(threshold),
+            "precision": metrics["precision"],
+            "recall": metrics["recall"],
+            "f1": metrics["f1"],
+            "false_positives": int(fp),
+            "false_negatives": int(fn),
+        })
+
+    threshold_comparison = pd.DataFrame(threshold_rows)
+
+    threshold_comparison.to_csv(
+        OUTPUT_DIR / "validation_threshold_comparison.csv",
+        index=False,
     )
 
-    validation_metrics = metrics_at_threshold(
+    validation_metrics = get_metrics(
         y_val,
         selected_val_prob,
-        selected_threshold
+        THRESHOLD,
     )
 
-    print("\n========== MODEL SELECTION ==========")
+    print("\n========== THRESHOLD ANALYSIS ==========")
+    print(threshold_comparison.round(4).to_string(index=False))
 
-    print(f"Selected model: {selected_name}")
+    print("\nSelected threshold:", THRESHOLD)
+    print("Validation recall:", round(validation_metrics["recall"], 4))
+    print("Validation precision:", round(validation_metrics["precision"], 4))
 
-    print(
-        "Validation-selected threshold (max F2): "
-        f"{selected_threshold:.6f}"
-    )
+    # ---------------------------------------------------------
+    # 7. FINAL TEST EVALUATION
+    # ---------------------------------------------------------
 
-    print(
-        "Validation F2 at selected threshold: "
-        f"{validation_best_f2:.4f}"
-    )
-
-    # Final test evaluation.
-    # The model and threshold are now frozen.
+    # The model and threshold are now fixed.
+    # Do not use test results to change either one.
     print("\n========== FINAL TEST EVALUATION ==========")
 
-    test_prob = selected_model.predict_proba(
-        X_test
-    )[:, 1]
-
-    test_metrics = metrics_at_threshold(
-        y_test,
-        test_prob,
-        selected_threshold
-    )
+    test_probabilities = selected_model.predict_proba(X_test)[:, 1]
 
     test_predictions = (
-        test_prob >= selected_threshold
+        test_probabilities >= THRESHOLD
     ).astype(int)
 
-    # Save individual test predictions.
+    test_metrics = get_metrics(
+        y_test,
+        test_probabilities,
+        THRESHOLD,
+    )
+
+    # ---------------------------------------------------------
+    # 8. TEST PREDICTIONS AND ERROR ANALYSIS
+    # ---------------------------------------------------------
+
     test_results = test_manifest[
         [
             "record_id",
             "source_extract",
             "source_scenario_index",
-            TARGET
+            TARGET,
         ]
     ].copy()
 
-    test_results["blackout_probability"] = test_prob
-
+    test_results["blackout_probability"] = test_probabilities
     test_results["predicted_blackout"] = test_predictions
-
     test_results["error_type"] = "correct"
 
     test_results.loc[
-        (test_results[TARGET] == 1)
-        & (test_predictions == 0),
-        "error_type"
+        (test_results[TARGET] == 1) & (test_predictions == 0),
+        "error_type",
     ] = "false_negative"
 
     test_results.loc[
-        (test_results[TARGET] == 0)
-        & (test_predictions == 1),
-        "error_type"
+        (test_results[TARGET] == 0) & (test_predictions == 1),
+        "error_type",
     ] = "false_positive"
 
     test_results.to_csv(
         OUTPUT_DIR / "test_predictions.csv",
-        index=False
+        index=False,
     )
 
-    # Export only incorrect predictions.
-    test_results.loc[
+    errors = test_results[
         test_results["error_type"] != "correct"
-    ].to_csv(
+    ].copy()
+
+    errors.to_csv(
         OUTPUT_DIR / "test_errors.csv",
-        index=False
+        index=False,
     )
 
-    # Save the selected model and threshold.
+    error_counts = test_results["error_type"].value_counts().to_dict()
+
+    source_analysis = (
+        test_results.groupby("source_extract")
+        .agg(
+            records=(TARGET, "size"),
+            errors=("error_type", lambda s: (s != "correct").sum()),
+        )
+        .reset_index()
+    )
+
+    source_analysis["error_rate"] = (
+        source_analysis["errors"] / source_analysis["records"]
+    )
+
+    source_analysis.to_csv(
+        OUTPUT_DIR / "error_analysis_by_source.csv",
+        index=False,
+    )
+
+    # ---------------------------------------------------------
+    # 9. FEATURE IMPORTANCE
+    # ---------------------------------------------------------
+
+    rf = selected_model.named_steps["model"]
+
+    importances = pd.DataFrame({
+        "feature": features,
+        "importance": rf.feature_importances_,
+    }).sort_values("importance", ascending=False)
+
+    importances.to_csv(
+        OUTPUT_DIR / "feature_importance.csv",
+        index=False,
+    )
+
+    # ---------------------------------------------------------
+    # 10. SAVE MODEL
+    # ---------------------------------------------------------
+
     joblib.dump(
         {
             "model": selected_model,
             "features": features,
-            "threshold": selected_threshold,
+            "threshold": THRESHOLD,
             "selected_model_name": selected_name,
-            "selection_metric": "validation average precision",
-            "threshold_metric": "validation F2",
+            "selection_metric": "StratifiedGroupKFold recall",
+            "threshold_selection": "Anais team decision: fixed 0.50",
+            "best_parameters": grid_search.best_params_,
         },
-        OUTPUT_DIR / "selected_model.joblib"
+        OUTPUT_DIR / "selected_model.joblib",
     )
+
+    # ---------------------------------------------------------
+    # 11. FIGURES
+    # ---------------------------------------------------------
 
     # Validation precision-recall curves.
     fig, ax = plt.subplots(figsize=(8, 6))
 
     for name, probabilities in validation_probabilities.items():
-
         PrecisionRecallDisplay.from_predictions(
             y_val,
             probabilities,
             name=name,
-            ax=ax
+            ax=ax,
         )
 
-    ax.set_title("Validation precision-recall curves")
-
+    ax.set_title("Validation Precision-Recall Curves")
     fig.tight_layout()
-
     fig.savefig(
         FIGURE_DIR / "validation_precision_recall.png",
-        dpi=160
+        dpi=160,
     )
-
     plt.close(fig)
 
-    # Validation ROC curve.
-    fig, ax = plt.subplots(figsize=(8, 6))
-
-    RocCurveDisplay.from_predictions(
-        y_val,
-        selected_val_prob,
-        ax=ax
+    # Validation recall by threshold.
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.plot(
+        threshold_comparison["threshold"],
+        threshold_comparison["recall"],
+        marker="o",
     )
-
-    ax.set_title(
-        f"Validation ROC curve — {selected_name}"
-    )
-
+    ax.set_xlabel("Decision threshold")
+    ax.set_ylabel("Recall")
+    ax.set_title("Validation Recall vs Decision Threshold")
+    ax.grid(True)
     fig.tight_layout()
-
     fig.savefig(
-        FIGURE_DIR / "validation_roc_curve.png",
-        dpi=160
+        FIGURE_DIR / "validation_recall_threshold.png",
+        dpi=160,
     )
-
     plt.close(fig)
 
-    # Final test confusion matrix.
+    # Test confusion matrix.
     fig, ax = plt.subplots(figsize=(6, 5))
 
     ConfusionMatrixDisplay.from_predictions(
         y_test,
         test_predictions,
-        display_labels=[
-            "No blackout",
-            "Blackout"
-        ],
+        labels=[0, 1],
+        display_labels=["No blackout", "Blackout"],
         values_format="d",
-        ax=ax
+        ax=ax,
     )
 
-    ax.set_title(
-        "Final test confusion matrix — "
-        f"threshold {selected_threshold:.3f}"
-    )
-
+    ax.set_title("Final Test Confusion Matrix — Threshold 0.50")
     fig.tight_layout()
-
     fig.savefig(
         FIGURE_DIR / "test_confusion_matrix.png",
-        dpi=160
+        dpi=160,
     )
-
     plt.close(fig)
 
-    # Final test precision-recall curve.
-    fig, ax = plt.subplots(figsize=(8, 6))
+    # Top 15 feature importances.
+    top_features = importances.head(15).sort_values("importance")
 
-    PrecisionRecallDisplay.from_predictions(
-        y_test,
-        test_prob,
-        name=f"{selected_name} (test)",
-        ax=ax
-    )
-
-    ax.set_title("Final test precision-recall curve")
-
+    fig, ax = plt.subplots(figsize=(9, 6))
+    ax.barh(top_features["feature"], top_features["importance"])
+    ax.set_title("Random Forest — Top 15 Feature Importances")
+    ax.set_xlabel("Importance")
     fig.tight_layout()
-
     fig.savefig(
-        FIGURE_DIR / "test_precision_recall.png",
-        dpi=160
+        FIGURE_DIR / "random_forest_feature_importance.png",
+        dpi=160,
     )
-
     plt.close(fig)
 
-    # Prepare complete results.
+    # ---------------------------------------------------------
+    # 12. RESULTS JSON
+    # ---------------------------------------------------------
+
+    tn, fp, fn, tp = np.array(
+        test_metrics["confusion_matrix"]
+    ).ravel()
+
     results = {
-
-        "dataset": (
-            "PowerGraph IEEE-24 simulated scenarios"
-        ),
-
+        "dataset": "Validated PowerGraph IEEE-24 dataset",
         "rows": int(len(data)),
-
-        "input_features": int(len(features)),
-
+        "features": int(len(features)),
+        "bus_features": int(len(bus_columns)),
         "target": TARGET,
 
-        "split_sizes": {
-            "train": int(train_idx.sum()),
-            "validation": int(validation_idx.sum()),
-            "test": int(test_idx.sum()),
+        "split_method": {
+            "outer": "train_test_split, test_size=0.20, stratify=y, random_state=42",
+            "validation": "GroupShuffleSplit, test_size=0.20, random_state=42",
+            "cross_validation": "5-fold StratifiedGroupKFold, random_state=42",
+            "train_records": int(len(X_train)),
+            "validation_records": int(len(X_val)),
+            "test_records": int(len(X_test)),
         },
 
-        "target_counts": {
-            str(k): int(v)
-            for k, v in y.value_counts().sort_index().items()
+        "group_overlap": {
+            "train_validation": int(train_val_overlap),
+            "train_test": int(train_test_overlap),
+            "pool_test": int(pool_test_overlap),
         },
 
         "model_selection": {
-
-            "criterion": (
-                "highest validation average precision"
-            ),
-
+            "criterion": "Recall",
             "selected_model": selected_name,
-
-            "validation_model_comparison":
-                comparison.to_dict(orient="records"),
+            "best_parameters": grid_search.best_params_,
+            "best_mean_cv_recall": float(grid_search.best_score_),
+            "validation_comparison": comparison.to_dict(orient="records"),
         },
 
         "threshold_selection": {
-
-            "criterion": "maximum validation F2",
-
-            "threshold": selected_threshold,
-
-            "validation_metrics_at_selected_threshold":
-                validation_metrics,
+            "threshold": THRESHOLD,
+            "reason": "Team decision following Anais's validation analysis",
+            "validation_metrics": validation_metrics,
+            "threshold_comparison": threshold_comparison.to_dict(orient="records"),
         },
 
         "final_test_metrics": test_metrics,
 
-        "test_error_counts": {
-
-            "false_positives": int(
-                (
-                    test_results["error_type"]
-                    == "false_positive"
-                ).sum()
-            ),
-
-            "false_negatives": int(
-                (
-                    test_results["error_type"]
-                    == "false_negative"
-                ).sum()
-            ),
-
-            "correct": int(
-                (
-                    test_results["error_type"]
-                    == "correct"
-                ).sum()
-            ),
+        "test_errors": {
+            "true_negatives": int(tn),
+            "false_positives": int(fp),
+            "false_negatives": int(fn),
+            "true_positives": int(tp),
+            "correct": int(error_counts.get("correct", 0)),
         },
 
+        "error_analysis_by_source": source_analysis.to_dict(orient="records"),
+
         "caveats": [
-            "All model fitting used training data only.",
-            "Model selection and threshold selection used validation data only.",
-            "The test set was evaluated after the model and threshold were frozen.",
-            "Records are simulated IEEE-24 scenarios, not real-world grid events.",
-            "Source documentation does not establish pre-outcome timing for every input feature.",
+            "The initial stratified outer split follows Anais's notebook and is not group-aware.",
+            "Identical bus configurations may therefore appear in the training pool and test set.",
+            "The inner train/validation split and cross-validation are group-aware.",
+            "The test set was evaluated only after model and threshold selection.",
+            "The dataset contains simulated scenarios and does not establish real-world grid performance.",
+            "The local dataset has not been independently verified as byte-for-byte identical to Anais's original blackout.csv.",
         ],
     }
 
     (OUTPUT_DIR / "evaluation_results.json").write_text(
         json.dumps(results, indent=2),
-        encoding="utf-8"
+        encoding="utf-8",
     )
 
-    # Generate the final Markdown report.
-    cm = np.array(
-        test_metrics["confusion_matrix"]
-    )
+    # ---------------------------------------------------------
+    # 13. MARKDOWN REPORT
+    # ---------------------------------------------------------
 
-    tn, fp, fn, tp = cm.ravel()
+    report = f"""# GridGuard — Evaluation Report
 
-    report = f"""# Full-dataset evaluation — GridGuard
+## 1. Evaluation protocol
 
-## Protocol
+- Dataset: 20,000 validated records.
+- Features: 224.
+- Target: `blackout`.
+- Initial split: stratified 80% train pool / 20% test.
+- Validation: GroupShuffleSplit, 20% of the training pool.
+- Cross-validation: 5-fold StratifiedGroupKFold.
+- Model selection criterion: recall.
+- Final model: Random Forest with all 224 features.
+- Decision threshold: 0.50.
 
-- Dataset: 20,000 validated PowerGraph IEEE-24 simulated records.
-- Inputs: 224 numerical features.
-- Official split: train {int(train_idx.sum())}, validation {int(validation_idx.sum())}, test {int(test_idx.sum())}.
-- The official all_records_manifest.csv was used.
-- The three partition manifests were checked against it.
-- Model selection: highest validation average precision.
-- Threshold selection: maximum F2 on validation data.
-- F2 gives recall more weight than precision.
-- The test set was not used for model selection or threshold tuning.
+## 2. Hyperparameter tuning
 
-## Validation model comparison
+Best parameters:
 
-```text
-{comparison.to_string(index=False, float_format=lambda value: f"{value:.4f}")}
+```json
+{json.dumps(grid_search.best_params_, indent=2)}
 ```
 
-## Selected model and threshold
+Best mean cross-validation recall: **{grid_search.best_score_:.4f}**
 
-- Model: **{selected_name}**
-- Threshold: **{selected_threshold:.6f}**
-- Validation F2: **{validation_best_f2:.4f}**
+## 3. Validation model comparison
 
-## Final test results
+```text
+{comparison.to_string(index=False, float_format=lambda x: f"{x:.4f}")}
+```
+
+## 4. Threshold selection
+
+The team selected threshold **0.50**, following Anais's validation analysis.
+The threshold comparison is available in `validation_threshold_comparison.csv`.
+
+At threshold 0.50:
+
+- Validation recall: **{validation_metrics['recall']:.4f}**
+- Validation precision: **{validation_metrics['precision']:.4f}**
+- Validation F1: **{validation_metrics['f1']:.4f}**
+
+## 5. Final test evaluation
+
+The model and threshold were fixed before evaluating the test set.
 
 | Metric | Test result |
 |---|---:|
 | Accuracy | {test_metrics['accuracy']:.4f} |
-| Precision (blackout) | {test_metrics['precision']:.4f} |
-| Recall (blackout) | {test_metrics['recall']:.4f} |
-| F1 (blackout) | {test_metrics['f1']:.4f} |
-| F2 (blackout) | {test_metrics['f2']:.4f} |
+| Precision | {test_metrics['precision']:.4f} |
+| Recall | {test_metrics['recall']:.4f} |
+| F1-score | {test_metrics['f1']:.4f} |
 | ROC-AUC | {test_metrics['roc_auc']:.4f} |
 | Average precision | {test_metrics['average_precision']:.4f} |
 
@@ -803,77 +758,73 @@ def main():
 
 | | Predicted no blackout | Predicted blackout |
 |---|---:|---:|
-| Actual no blackout | {tn} (TN) | {fp} (FP) |
-| Actual blackout | {fn} (FN) | {tp} (TP) |
+| Actual no blackout | {tn} | {fp} |
+| Actual blackout | {fn} | {tp} |
 
 - False positives: **{fp}**
 - False negatives: **{fn}**
 
-A false negative is an actual blackout case that the model misses.
-A false positive is a predicted blackout where the actual label is 0.
+## 6. Error analysis
 
-## Error analysis
+Test errors are available in `test_errors.csv`.
 
-Per-record test predictions are saved in `test_predictions.csv`.
+### Errors by source
 
-Misclassified test records are saved in `test_errors.csv`,
-including their record IDs, true labels, predicted probabilities
-and error type.
+```text
+{source_analysis.to_string(index=False, float_format=lambda x: f"{x:.4f}")}
+```
 
-## Figures
+Feature importances are saved in `feature_importance.csv`.
 
-- `figures/evaluation/validation_precision_recall.png`
-- `figures/evaluation/validation_roc_curve.png`
-- `figures/evaluation/test_confusion_matrix.png`
-- `figures/evaluation/test_precision_recall.png`
+## 7. Results synthesis
 
-## Limitations
+The Random Forest was tuned using recall as the cross-validation scoring metric.
+The final threshold was fixed at 0.50 according to the team's decision.
 
-The dataset contains simulated IEEE-24 scenarios.
-Results should not be interpreted as validated real-world grid performance.
+The test metrics provide the final estimate of performance on the reserved test partition.
+Recall is especially important because false negatives correspond to missed blackout cases.
+Precision is also important because false positives correspond to unnecessary alerts.
 
-The project cleaning report also notes that the source documentation
-does not establish pre-outcome timing for every input feature.
-Possible temporal leakage therefore remains a limitation to investigate.
+## 8. Limitations
+
+The initial outer split is stratified but not group-aware, following Anais's notebook.
+Therefore, identical bus configurations may occur in both the training pool and test set.
+This limits claims about generalization to completely unseen configurations.
+
+The dataset contains simulated scenarios. These results should not be interpreted as
+proof of real-world grid performance.
 """
 
     (OUTPUT_DIR / "evaluation_report.md").write_text(
         report,
-        encoding="utf-8"
+        encoding="utf-8",
     )
 
-    # Print final results.
+    # ---------------------------------------------------------
+    # 14. FINAL CONSOLE SUMMARY
+    # ---------------------------------------------------------
+
     print("\n========== FINAL TEST RESULTS ==========")
 
-    for key in (
+    for metric in [
         "accuracy",
         "precision",
         "recall",
         "f1",
-        "f2",
         "roc_auc",
         "average_precision",
-    ):
+    ]:
+        print(f"{metric:20s}: {test_metrics[metric]:.4f}")
 
-        print(
-            f"{key:20s}: {test_metrics[key]:.4f}"
-        )
+    print("\nConfusion matrix [[TN, FP], [FN, TP]]:")
+    print(test_metrics["confusion_matrix"])
 
-    print(
-        "\nConfusion matrix [[TN, FP], [FN, TP]]: "
-        f"{cm.tolist()}"
-    )
+    print("False positives:", fp)
+    print("False negatives:", fn)
 
-    print(f"False positives: {fp}")
-    print(f"False negatives: {fn}")
-
-    print(f"\nSaved outputs in: {OUTPUT_DIR}")
-    print(f"Saved figures in: {FIGURE_DIR}")
-
-    print(
-        "\nRead reports/evaluation/evaluation_report.md "
-        "for the synthesis."
-    )
+    print("\nEvaluation report:", OUTPUT_DIR / "evaluation_report.md")
+    print("Results JSON:", OUTPUT_DIR / "evaluation_results.json")
+    print("Figures:", FIGURE_DIR)
 
 
 if __name__ == "__main__":

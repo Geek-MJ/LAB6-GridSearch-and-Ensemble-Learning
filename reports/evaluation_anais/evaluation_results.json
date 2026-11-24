@@ -1,0 +1,224 @@
+{
+  "dataset": "Validated PowerGraph IEEE-24 dataset",
+  "rows": 20000,
+  "features": 224,
+  "bus_features": 72,
+  "target": "blackout",
+  "split_method": {
+    "outer": "train_test_split, test_size=0.20, stratify=y, random_state=42",
+    "validation": "GroupShuffleSplit, test_size=0.20, random_state=42",
+    "cross_validation": "5-fold StratifiedGroupKFold, random_state=42",
+    "train_records": 12824,
+    "validation_records": 3176,
+    "test_records": 4000
+  },
+  "group_overlap": {
+    "train_validation": 0,
+    "train_test": 365,
+    "pool_test": 457
+  },
+  "model_selection": {
+    "criterion": "Recall",
+    "selected_model": "Random_forest_Anais",
+    "best_parameters": {
+      "model__class_weight": "balanced",
+      "model__max_depth": 11,
+      "model__max_features": 225,
+      "model__min_samples_leaf": 2,
+      "model__min_samples_split": 6,
+      "model__n_estimators": 6
+    },
+    "best_mean_cv_recall": 0.9723201447970935,
+    "validation_comparison": [
+      {
+        "model": "Logistic_regression",
+        "validation_recall": 0.9818456883509834,
+        "validation_precision": 0.878213802435724,
+        "validation_f1": 0.9271428571428572,
+        "validation_average_precision": 0.9763640296099458,
+        "validation_roc_auc": 0.9939190875924484,
+        "threshold": 0.5
+      },
+      {
+        "model": "Random_forest_Anais",
+        "validation_recall": 0.9742813918305597,
+        "validation_precision": 0.7567567567567568,
+        "validation_f1": 0.8518518518518519,
+        "validation_average_precision": 0.9499811918707686,
+        "validation_roc_auc": 0.9867424800666499,
+        "threshold": 0.5
+      },
+      {
+        "model": "Decision_tree",
+        "validation_recall": 0.9470499243570348,
+        "validation_precision": 0.9615975422427036,
+        "validation_f1": 0.9542682926829268,
+        "validation_average_precision": 0.9665436841572509,
+        "validation_roc_auc": 0.9840545230883985,
+        "threshold": 0.5
+      },
+      {
+        "model": "Dummy_prior",
+        "validation_recall": 0.0,
+        "validation_precision": 0.0,
+        "validation_f1": 0.0,
+        "validation_average_precision": 0.2081234256926952,
+        "validation_roc_auc": 0.5,
+        "threshold": 0.5
+      }
+    ]
+  },
+  "threshold_selection": {
+    "threshold": 0.5,
+    "reason": "Team decision following Anais's validation analysis",
+    "validation_metrics": {
+      "threshold": 0.5,
+      "accuracy": 0.929471032745592,
+      "precision": 0.7567567567567568,
+      "recall": 0.9742813918305597,
+      "f1": 0.8518518518518519,
+      "roc_auc": 0.9867424800666499,
+      "average_precision": 0.9499811918707686,
+      "confusion_matrix": [
+        [
+          2308,
+          207
+        ],
+        [
+          17,
+          644
+        ]
+      ]
+    },
+    "threshold_comparison": [
+      {
+        "threshold": 0.05,
+        "precision": 0.6563436563436563,
+        "recall": 0.9939485627836612,
+        "f1": 0.7906137184115524,
+        "false_positives": 344,
+        "false_negatives": 4
+      },
+      {
+        "threshold": 0.1,
+        "precision": 0.6755921730175077,
+        "recall": 0.9924357034795764,
+        "f1": 0.803921568627451,
+        "false_positives": 315,
+        "false_negatives": 5
+      },
+      {
+        "threshold": 0.15,
+        "precision": 0.6873032528856243,
+        "recall": 0.9909228441754917,
+        "f1": 0.8116480793060719,
+        "false_positives": 298,
+        "false_negatives": 6
+      },
+      {
+        "threshold": 0.2,
+        "precision": 0.7043010752688172,
+        "recall": 0.9909228441754917,
+        "f1": 0.8233815210559396,
+        "false_positives": 275,
+        "false_negatives": 6
+      },
+      {
+        "threshold": 0.25,
+        "precision": 0.7073434125269978,
+        "recall": 0.9909228441754917,
+        "f1": 0.8254568367989918,
+        "false_positives": 271,
+        "false_negatives": 6
+      },
+      {
+        "threshold": 0.3,
+        "precision": 0.7197802197802198,
+        "recall": 0.9909228441754917,
+        "f1": 0.8338637810311903,
+        "false_positives": 255,
+        "false_negatives": 6
+      },
+      {
+        "threshold": 0.35,
+        "precision": 0.7253599114064231,
+        "recall": 0.9909228441754917,
+        "f1": 0.8375959079283888,
+        "false_positives": 248,
+        "false_negatives": 6
+      },
+      {
+        "threshold": 0.4,
+        "precision": 0.7279821627647715,
+        "recall": 0.9878971255673222,
+        "f1": 0.8382541720154044,
+        "false_positives": 244,
+        "false_negatives": 8
+      },
+      {
+        "threshold": 0.45,
+        "precision": 0.7380952380952381,
+        "recall": 0.9848714069591528,
+        "f1": 0.8438107582631238,
+        "false_positives": 231,
+        "false_negatives": 10
+      },
+      {
+        "threshold": 0.5,
+        "precision": 0.7567567567567568,
+        "recall": 0.9742813918305597,
+        "f1": 0.8518518518518519,
+        "false_positives": 207,
+        "false_negatives": 17
+      }
+    ]
+  },
+  "final_test_metrics": {
+    "threshold": 0.5,
+    "accuracy": 0.9345,
+    "precision": 0.7698412698412699,
+    "recall": 0.9627791563275434,
+    "f1": 0.8555678059536935,
+    "roc_auc": 0.9821107271543572,
+    "average_precision": 0.9496074486669975,
+    "confusion_matrix": [
+      [
+        2962,
+        232
+      ],
+      [
+        30,
+        776
+      ]
+    ]
+  },
+  "test_errors": {
+    "true_negatives": 2962,
+    "false_positives": 232,
+    "false_negatives": 30,
+    "true_positives": 776,
+    "correct": 3738
+  },
+  "error_analysis_by_source": [
+    {
+      "source_extract": "1000_csv",
+      "records": 190,
+      "errors": 12,
+      "error_rate": 0.06315789473684211
+    },
+    {
+      "source_extract": "19000_zip",
+      "records": 3810,
+      "errors": 250,
+      "error_rate": 0.06561679790026247
+    }
+  ],
+  "caveats": [
+    "The initial stratified outer split follows Anais's notebook and is not group-aware.",
+    "Identical bus configurations may therefore appear in the training pool and test set.",
+    "The inner train/validation split and cross-validation are group-aware.",
+    "The test set was evaluated only after model and threshold selection.",
+    "The dataset contains simulated scenarios and does not establish real-world grid performance.",
+    "The local dataset has not been independently verified as byte-for-byte identical to Anais's original blackout.csv."
+  ]
+}

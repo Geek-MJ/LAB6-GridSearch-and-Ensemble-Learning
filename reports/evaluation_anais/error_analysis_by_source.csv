@@ -1,0 +1,3 @@
+source_extract,records,errors,error_rate
+1000_csv,190,12,0.06315789473684211
+19000_zip,3810,250,0.06561679790026247
