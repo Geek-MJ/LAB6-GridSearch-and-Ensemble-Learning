@@ -73,29 +73,24 @@ Prioritise recall while also reporting precision, F1-score, false positives and 
 Checks included Python syntax validation and reduced-grid runs for Random Forest, Gradient Boosting and soft voting on a 1,200-row sample. These checks confirmed that feature selectors used only the training rows of each fold and that the corrected outer splits shared no bus-state groups. TabNet was not executed during this review because PyTorch was unavailable in the review environment.
 
 
-## 4. Yutong CAO — Evaluation and Interpretation
+## 4. Yutong CAO — Evaluation and Decision Tree Experiments
 
-**Prompt (recorded request, paraphrased from the project conversation):**
+**Prompts (summarised from the actual interactions):**
 
-1. "Help me adapt my Decision Tree baseline evaluation to the official team split. Use the provided train.csv and test.csv, and do not mix results from the earlier three-way split with the new results."
-2. "Help me implement grouped five-fold cross-validation so that identical complete feature vectors remain in the same fold. Verify that there is no group overlap between each training and validation fold."
-3. "Compare the original Decision Tree with controlled-depth versions using accuracy, precision, recall, F1-score and ROC-AUC. Use the cross-validation results to select the model."
-4. "Analyse the effect of different classification thresholds. Explain the results if the predictions remain unchanged across thresholds."
-5. "Evaluate the selected model once on the untouched test set, analyse false positives and false negatives, and help me document the results and limitations."
+1. Adapt the Decision Tree baseline notebook to the official 20,000-record team split, using only `train.csv` and `test.csv`. Preserve the original experiment and avoid using the test set during model selection.
+2. Implement grouped five-fold cross-validation so that identical complete 224-feature input vectors remain in the same fold. Verify that there is no group overlap between training and validation folds.
+3. Compare the default Decision Tree with controlled-depth Decision Trees using accuracy, precision, recall, F1-score and ROC-AUC.
+4. Analyse out-of-fold predicted probabilities across different classification thresholds. Explain whether threshold selection changes the predictions and whether the probabilities can be interpreted as calibrated risk estimates.
+5. Evaluate the selected model once on the untouched test set and analyse false positives, false negatives and feature differences between correctly and incorrectly classified cases.
 
-**Task and dataset:**
+**Task and dataset:**  
+Evaluate a Decision Tree baseline for binary classification of simulated PowerGraph scenarios. The dataset contains 20,000 records, 224 numerical input features and a binary `blackout` target, where 1 indicates demand not served and 0 indicates no demand not served.
 
-Evaluate Decision Tree baseline models for binary classification on the simulated PowerGraph dataset. The dataset contains 20,000 observations, 224 numerical input features and a binary target named `blackout`. A value of 1 indicates that a scenario has unserved electricity demand, while 0 indicates no unserved demand. The official split contains 16,018 training records and 3,982 test records.
+**Constraints:**  
+Use the official team split (`train.csv`: 16,018 records; `test.csv`: 3,982 records). Group identical complete input vectors during cross-validation. Use grouped cross-validation on the training set for model comparison and threshold analysis. Keep the test set untouched until final evaluation. Report all relevant classification metrics and distinguish simulated-data performance from real-world grid performance.
 
-**Constraints:**
+**Response and checks:**  
+The final workflow used `StratifiedGroupKFold` with five folds. It verified that identical feature-vector groups did not overlap between training and validation folds. The default Decision Tree achieved the highest grouped out-of-fold F1-score among the three tested trees. Thresholds from 0.1 to 0.9 produced identical predictions because the tree returned only probabilities of 0.0 and 1.0. The final model was refitted on all training records and evaluated on the test set.
 
-Use the official team-provided `train.csv` and `test.csv`. Keep the test set untouched during model comparison, cross-validation and threshold selection. Group identical complete input feature vectors together during cross-validation. Compare models using accuracy, precision, recall, F1-score and ROC-AUC. Report false positives and false negatives, and explain the limitations of evaluating simulated data. Do not describe the `blackout` label as necessarily meaning a total blackout.
-
-**Response and checks:**
-
-AI assistance was used to structure the evaluation workflow, review Python code, interpret cross-validation and threshold results, and draft the evaluation report. I checked the dataset dimensions and class counts, verified that identical feature-vector groups did not overlap across the five cross-validation folds, and confirmed that each model produced 16,018 out-of-fold predictions. I then refitted the selected Decision Tree on the full training set and evaluated it on the untouched test set.
-
-The final test evaluation produced an accuracy of 0.9922, precision of 0.9860, recall of 0.9747, F1-score of 0.9803 and ROC-AUC of 0.9856. The confusion matrix was [[3179, 11], [20, 772]]. Thresholds from 0.1 to 0.9 produced identical predictions because the Decision Tree output only two distinct probability values, 0.0 and 1.0. I therefore retained the default threshold of 0.5 rather than claiming that 0.1 was a better threshold.
-
-**Files:** `notebooks/step4_baseline_20000_team_split.ipynb`, `reports/baseline_evaluation_20000.md`, `reports/decision_tree_final_results.csv`, `reports/decision_tree_threshold_analysis.csv`, `reports/decision_tree_test_errors.csv`, `reports/decision_tree_error_feature_analysis.csv`.
-
+**Files:**  
+`notebooks/step4_baseline_20000_team_split.ipynb`, `reports/baseline_evaluation_20000.md`, `reports/decision_tree_final_results.csv`, `reports/decision_tree_threshold_analysis.csv`, `reports/decision_tree_test_errors.csv`, `reports/decision_tree_error_feature_analysis.csv`.
