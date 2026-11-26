@@ -1,207 +1,262 @@
-# Decision Tree Baseline Evaluation — 20,000 Records
+# GridGuard — Decision Tree Baseline Evaluation (Official Team Split)
 
-**Contributor:** Yutong Cao  
-**Project:** GridGuard — Blackout Prediction  
-**Module:** Decision Tree Baseline Evaluation  
-**Dataset:** PowerGraph IEEE-24 Simulated Scenarios
+**Author:** Yutong CAO
+
+**Task:** Decision Tree baseline evaluation, model comparison, threshold selection, final test assessment and error analysis
+
+**Dataset:** 20,000 simulated power-grid records
+
+**Target:** `blackout` (0 = Normal, 1 = Blackout)
+
+---
 
 ## 1. Objective
 
-The objective of this experiment is to establish a reproducible Decision Tree baseline using the complete 20,000-record dataset.
+The objective of this experiment is to establish and evaluate a Decision Tree baseline for blackout prediction using the official team train/test split.
 
-The model predicts whether a simulated power-grid scenario contains Demand Not Served (DNS):
+Three Decision Tree configurations are compared using grouped cross-validation. The selected model is then fitted on the complete training set and evaluated once on the independent test set.
 
-- `blackout = 0`: No Demand Not Served.
-- `blackout = 1`: Demand Not Served is present.
+The experiment focuses on classification performance, threshold sensitivity and prediction errors.
 
-This is a binary classification task. The target does not necessarily indicate a total power-grid or national blackout.
+## 2. Dataset and Official Split
 
-This experiment is separate from the earlier 1,000-record baseline evaluation.
+The dataset contains 20,000 simulated records and 224 numerical input features.
 
-## 2. Dataset and Integrity Verification
+The official team split is:
 
-The complete dataset contains 20,000 records and 224 input features, with one binary target column.
-
-| Property | Value |
-|---|---:|
-| Total records | 20,000 |
-| Input features | 224 |
-| Blackout cases (1) | 4,032 |
-| Normal cases (0) | 15,968 |
-| Positive class proportion | 20.16% |
-
-The dataset combines the original 1,000 records and 19,000 additional records.
-
-The dataset integrity checks verified:
-
-- All 20,000 records were matched with the official manifest.
-- Record identifiers matched the expected source records.
-- Original source indices matched.
-- Target labels matched.
-- Feature hashes matched.
-- No identical feature-hash groups crossed the official train, validation, and test splits.
-
-All implemented integrity checks passed.
-
-## 3. Evaluation Protocol
-
-The official group-aware split was used.
-
-| Split | Records | Blackout (1) | Normal (0) |
+| Dataset | Records | Normal (0) | Blackout (1) |
 |---|---:|---:|---:|
-| Train | 13,993 | 2,820 | 11,173 |
-| Validation | 3,010 | 607 | 2,403 |
-| Test | 2,997 | 605 | 2,392 |
-| **Total** | **20,000** | **4,032** | **15,968** |
+| Training | 16,018 | 12,778 | 3,240 |
+| Test | 3,982 | 3,190 | 792 |
+| **Total** | **20,000** | **15,968** | **4,032** |
 
-The roles of the datasets were:
+The split was produced using a group-aware procedure. Identical complete input feature vectors were assigned to the same group before the train/test partition was created.
 
-- Training set: model fitting.
-- Validation set: model comparison and threshold analysis.
-- Test set: final evaluation after the model and threshold were fixed.
+The team verified that no identical complete input feature vectors are shared between the training and test sets.
 
-The test set was not used for model selection or threshold tuning.
+There is no separate validation CSV in this protocol. Model comparison and threshold analysis are performed using cross-validation within the training set. The test set is reserved for final evaluation.
 
-## 4. Baseline Model
+## 3. Validation Protocol
 
-The baseline classifier was a scikit-learn `DecisionTreeClassifier` initialized with:
+A five-fold `StratifiedGroupKFold` procedure was used on the 16,018 training records.
 
-- `random_state = 42`
-- Default tree complexity parameters.
+Groups were constructed using all 224 input features. Identical feature vectors received the same group identifier.
 
-The model was trained using all 13,993 training records and 224 input features.
+The training set contained:
 
-### Model Complexity
+- 16,018 records
+- 14,863 unique complete feature-vector groups
+- 1,155 additional duplicate records grouped with matching vectors
 
-| Metric | Value |
+All five folds passed the group-disjoint verification: no group was shared between the training and validation portions of any fold.
+
+This procedure reduces the risk of overly optimistic validation results caused by identical input vectors appearing in both portions of a fold.
+
+## 4. Decision Tree Models
+
+Three configurations were evaluated:
+
+| Model | Parameters |
+|---|---|
+| Baseline Decision Tree | Default parameters, `random_state=42` |
+| Controlled DT 1 | `max_depth=8`, `min_samples_leaf=5` |
+| Controlled DT 2 | `max_depth=10`, `min_samples_leaf=10` |
+
+All models used the same five-fold grouped cross-validation procedure.
+
+### 4.1 Grouped Cross-Validation Results
+
+| Model | Accuracy | Precision | Recall | F1-score | ROC-AUC |
+|---|---:|---:|---:|---:|---:|
+| Baseline Decision Tree | **0.9871** | **0.9711** | 0.9648 | **0.9680** | 0.9788 |
+| Controlled DT 1 | 0.9148 | 0.7522 | 0.8636 | 0.8040 | 0.9597 |
+| Controlled DT 2 | 0.9293 | 0.7953 | 0.8756 | 0.8336 | 0.9690 |
+
+The Baseline Decision Tree achieved the highest F1-score and was selected for final evaluation.
+
+The controlled models performed less well under this validation protocol. This suggests that the restrictions applied to their tree complexity reduced their ability to capture patterns in this simulated dataset.
+
+The results do not establish that more complex trees are always preferable; they indicate that the unrestricted baseline performed best in this experiment.
+
+## 5. Threshold Analysis
+
+Threshold selection was performed using the selected model's out-of-fold probabilities from the training set.
+
+Thresholds between 0.1 and 0.9 were evaluated.
+
+All tested thresholds produced identical results:
+
+| Threshold | Accuracy | Precision | Recall | F1-score |
+|---:|---:|---:|---:|---:|
+| 0.1 | 0.9871 | 0.9711 | 0.9648 | 0.9680 |
+| 0.2 | 0.9871 | 0.9711 | 0.9648 | 0.9680 |
+| 0.3 | 0.9871 | 0.9711 | 0.9648 | 0.9680 |
+| 0.4 | 0.9871 | 0.9711 | 0.9648 | 0.9680 |
+| 0.5 | 0.9871 | 0.9711 | 0.9648 | 0.9680 |
+| 0.6 | 0.9871 | 0.9711 | 0.9648 | 0.9680 |
+| 0.7 | 0.9871 | 0.9711 | 0.9648 | 0.9680 |
+| 0.8 | 0.9871 | 0.9711 | 0.9648 | 0.9680 |
+| 0.9 | 0.9871 | 0.9711 | 0.9648 | 0.9680 |
+
+Only two distinct out-of-fold probability values were observed:
+
+- 0.0: 12,799 records
+- 1.0: 3,219 records
+
+This explains why changing the threshold within the tested range did not change the predicted classes.
+
+The default threshold of 0.5 was retained. The model's discrete probability outputs should not be interpreted as calibrated estimates of real-world blackout risk.
+
+## 6. Final Model
+
+The selected Baseline Decision Tree was refitted using all 16,018 training records.
+
+| Model characteristic | Result |
 |---|---:|
-| Tree depth | 28 |
-| Number of leaves | 210 |
-| Number of nodes | 419 |
-| Training samples | 13,993 |
-| Input features | 224 |
+| Training records | 16,018 |
+| Tree depth | 27 |
+| Number of leaves | 232 |
+| Number of nodes | 463 |
 
-## 5. Validation Evaluation
+The final model was evaluated on the independent test set using the retained threshold of 0.5.
 
-The original Decision Tree achieved:
+## 7. Final Test Results
 
-| Metric | Validation Result |
+| Metric | Result |
 |---|---:|
-| Accuracy | 0.9900 |
-| Precision | 0.9769 |
-| Recall | 0.9736 |
-| F1-score | 0.9752 |
+| Accuracy | **0.9922** |
+| Precision | **0.9860** |
+| Recall | **0.9747** |
+| F1-score | **0.9803** |
+| ROC-AUC | **0.9856** |
+| Test records | 3,982 |
 
-Validation confusion matrix:
+### 7.1 Confusion Matrix
 
-| | Predicted 0 | Predicted 1 |
+| Actual / Predicted | Normal (0) | Blackout (1) |
 |---|---:|---:|
-| Actual 0 | 2,389 | 14 |
-| Actual 1 | 16 | 591 |
+| Normal (0) | 3,179 | 11 |
+| Blackout (1) | 20 | 772 |
 
-### 5.1 Controlled Decision Tree Comparison
+The model correctly classified:
 
-Two constrained configurations were evaluated against the original baseline.
+- 3,179 normal records
+- 772 blackout records
 
-| Model | Train F1 | Validation Accuracy | Validation Precision | Validation Recall | Validation F1 | Depth | Leaves |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| Original Baseline | 1.0000 | 0.9900 | 0.9769 | 0.9736 | 0.9752 | 28 | 210 |
-| Controlled DT 1 | 0.8205 | 0.9166 | 0.7543 | 0.8699 | 0.8080 | 8 | 46 |
-| Controlled DT 2 | 0.8476 | 0.9269 | 0.7833 | 0.8814 | 0.8295 | 10 | 59 |
+It made 31 classification errors:
 
-The original baseline achieved the highest validation F1-score.
+- 11 False Positives
+- 20 False Negatives
 
-The controlled models reduced the training-validation F1 gap, but also reduced validation performance. Therefore, the original baseline was retained as the main candidate.
+The blackout recall of 0.9747 means that 772 of the 792 blackout records in the test set were correctly identified.
 
-## 6. Validation Threshold Analysis
+The results show strong classification performance on this simulated test dataset.
 
-Thresholds from 0.1 to 0.9 were evaluated using validation probabilities.
+## 8. Error Analysis
 
-All thresholds produced identical classification results:
+The 31 misclassified test records were examined separately.
 
-| Metric | Value |
-|---|---:|
-| Precision | 0.9769 |
-| Recall | 0.9736 |
-| F1-score | 0.9752 |
-| TN | 2,389 |
-| FP | 14 |
-| FN | 16 |
-| TP | 591 |
+| Error type | Count | Description |
+|---|---:|---|
+| False Positive | 11 | Normal records incorrectly predicted as blackout |
+| False Negative | 20 | Blackout records incorrectly predicted as normal |
+| **Total** | **31** | |
 
-The probability distribution contained only two unique values:
+The False Negatives represent 64.5% of all classification errors, while False Positives represent 35.5%.
 
-- Probability 0.0: 2,405 records.
-- Probability 1.0: 605 records.
+The predicted probabilities of the misclassified records were also examined:
 
-No validation probabilities fell between 0.1 and 0.9.
+- All 11 False Positives had a predicted probability of 1.0.
+- All 20 False Negatives had a predicted probability of 0.0.
 
-This explains why changing the threshold did not affect the predictions. The threshold was retained at 0.5.
+This is consistent with the discrete probability outputs observed during threshold analysis.
 
-The discrete probabilities indicate pure prediction leaves in this fitted tree. They should not be interpreted as calibrated real-world risk probabilities.
+### 8.1 Feature Difference Analysis
 
-## 7. Final Test Evaluation
+An exploratory comparison was conducted between:
 
-After fixing the model and threshold, the final test evaluation was performed on the 2,997 test records.
+- False Negatives and True Positives
+- False Positives and True Negatives
 
-| Metric | Test Result |
-|---|---:|
-| Accuracy | 0.9923 |
-| Precision | 0.9883 |
-| Recall | 0.9736 |
-| F1-score | 0.9808 |
-| ROC-AUC | 0.9853 |
+Standardized Mean Differences (SMDs) were calculated to identify features with relatively large differences in group means.
 
-Test confusion matrix:
+For False Negatives compared with True Positives, some of the largest observed differences involved:
 
-| | Predicted 0 | Predicted 1 |
-|---|---:|---:|
-| Actual 0 | 2,385 | 7 |
-| Actual 1 | 16 | 589 |
+- `line_9_reactive_power_flow`
+- `line_7_reactive_power_flow`
+- `line_4_reactive_power_flow`
+- `bus_20_net_apparent_power`
+- `bus_6_net_apparent_power`
 
-The model correctly classified 2,974 out of 2,997 test records.
+For False Positives compared with True Negatives, prominent differences included:
 
-## 8. Test Error Analysis
+- `bus_3_voltage_magnitude`
+- `line_24_reactive_power_flow`
+- `bus_14_voltage_magnitude`
 
-A total of 23 misclassified records were identified.
+These are descriptive comparisons, not evidence that the features caused the classification errors.
 
-| Error Type | Count |
-|---|---:|
-| False Positives | 7 |
-| False Negatives | 16 |
-| Total Errors | 23 |
+The number of errors is relatively small, especially for False Positives (11 records). Consequently, the feature-level findings should be interpreted as exploratory rather than conclusive.
 
-Errors by data source:
+## 9. Discussion
 
-| Source | False Positives | False Negatives |
-|---|---:|---:|
-| Original 1,000 records (`small`) | 1 | 0 |
-| Additional 19,000 records (`large`) | 6 | 16 |
-| Total | 7 | 16 |
+The Baseline Decision Tree achieved an F1-score of 0.9680 during grouped cross-validation and 0.9803 on the independent test set.
 
-False negatives are particularly important because they represent simulated DNS scenarios that the classifier failed to identify.
+The difference between cross-validation and test performance should be interpreted cautiously, as both estimates are based on finite samples from the same simulated dataset.
 
-This source-level breakdown is descriptive. It does not establish that the additional records are inherently more difficult, because the two sources may differ in their scenario distributions.
+The model performed well under the official team split, including when identical complete feature vectors were prevented from crossing the train/test boundary.
 
-## 9. Limitations
+The controlled trees had lower validation F1-scores, indicating that their restrictions on tree complexity were less suitable for this dataset.
+
+The test results also show that the model identified most blackout records, although 20 blackout cases were missed. In a real operational context, False Negatives could be particularly important because they represent potentially undetected blackout conditions.
+
+The high performance should be interpreted in the context of the simulated dataset and its feature construction. It should not be presented as evidence of equivalent performance on real power-grid events.
+
+## 10. Limitations
 
 Several limitations must be considered:
 
-1. **Simulated data:** The dataset represents simulated IEEE-24 power-grid scenarios, not historical real-world blackout observations.
-2. **Generalization:** High test performance on this dataset does not guarantee equivalent performance on other power systems or real operational conditions.
-3. **Discrete probabilities:** The model produces only 0.0 and 1.0 probabilities on the validation set, limiting threshold flexibility and preventing meaningful probability calibration analysis with this model output.
-4. **False negatives:** Sixteen positive test cases were missed and require further investigation.
-5. **Feature interpretation:** The 224 input features retain source preprocessing. Their physical meanings and units should not be assumed without the original dataset documentation.
-6. **Group separation:** The group-aware split prevents identical feature-hash groups from crossing splits, but does not by itself prove the absence of every possible form of data leakage.
+1. **Simulated data:** The experiment uses simulated power-grid records rather than independent real-world blackout events.
+2. **Feature-vector grouping:** The group-aware procedure prevents identical complete input vectors from crossing partitions, but it does not necessarily eliminate all correlations between related simulated operating conditions.
+3. **Feature timing:** The available dataset documentation does not establish that every predictor would be available before a real blackout event. Potential temporal or feature-level leakage therefore cannot be completely ruled out.
+4. **Probability calibration:** The Decision Tree produced only 0.0 and 1.0 out-of-fold probability values. These outputs are not calibrated risk estimates.
+5. **Threshold sensitivity:** The tested thresholds did not change classification outcomes, limiting the usefulness of threshold adjustment for this particular model.
+6. **Error analysis sample size:** The relatively small numbers of False Positives and False Negatives limit the strength of conclusions from feature-level comparisons.
+7. **Deployment:** The experiment does not establish operational reliability, real-time performance or readiness for deployment in a real power grid.
 
-## 10. Conclusion
+## 11. Conclusion
 
-The original Decision Tree established a strong baseline on the complete 20,000-record dataset, achieving a test F1-score of 0.9808 and ROC-AUC of 0.9853.
+The Baseline Decision Tree was the best-performing Decision Tree configuration in the five-fold grouped cross-validation experiment.
 
-It outperformed the two controlled Decision Tree configurations on validation F1.
+It achieved the following results on the independent official test set:
 
-The final test error analysis identified 16 false negatives and 7 false positives. These errors, together with the simulated nature of the dataset and the discrete probability outputs, provide important directions for future model development.
+- Accuracy: 99.22%
+- Precision: 98.60%
+- Recall: 97.47%
+- F1-score: 98.03%
+- ROC-AUC: 98.56%
 
-This baseline serves as a reference for comparison with more advanced models, including Random Forest and boosting approaches.
+The model correctly identified 772 of 792 blackout records, with 20 False Negatives and 11 False Positives.
 
-**Important:** The 1,000-record and 20,000-record baseline experiments are separate evaluations and their results should not be merged into a single experiment.
+These results establish a strong Decision Tree baseline for comparison with the advanced classifiers developed by the other team members. They should be understood as results on the current simulated dataset, not as validation of a real-world blackout prediction system.
+
+## 12. Reproducibility and Supporting Files
+
+The experiment outputs are saved in the `reports/` directory:
+
+| File | Description |
+|---|---|
+| `decision_tree_final_results.csv` | Grouped CV and final test metrics |
+| `decision_tree_threshold_analysis.csv` | OOF threshold comparison |
+| `decision_tree_test_errors.csv` | Misclassified test records |
+| `decision_tree_error_feature_analysis.csv` | Exploratory feature difference analysis |
+
+The main experiment notebook is:
+
+- `notebooks/step4_baseline_20000_team_split.ipynb`
+
+The official split methodology is documented in:
+
+- `reports/team_split.md`
+
+The earlier three-way split experiment is historical and is not mixed with the official two-file split results reported here.
