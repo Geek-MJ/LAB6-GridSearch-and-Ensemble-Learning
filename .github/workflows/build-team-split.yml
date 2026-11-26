@@ -1,0 +1,55 @@
+name: Build team stratified split
+
+on:
+  push:
+    branches:
+      - feature/step4-baseline
+    paths:
+      - ".github/workflows/build-team-split.yml"
+      - "src/split_data.py"
+      - "tests/test_team_split.py"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  split:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install pandas==2.2.3 numpy==2.3.5 scikit-learn==1.8.0 pytest==9.0.2
+      - name: Verify split reproducibility
+        run: python -m pytest -q tests/test_team_split.py
+      - name: Generate split manifests
+        run: python -m src.split_data
+      - name: Check generated manifests
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import pandas as pd
+          path = Path("data/splits/team_stratified_80_20")
+          info = json.loads((path / "split_summary.json").read_text())
+          assert [info["partitions"][x]["records"] for x in ("train", "validation", "test")] == [12824, 3176, 4000]
+          assert [info["partitions"][x]["blackout_1"] for x in ("train", "validation", "test")] == [2565, 661, 806]
+          total = pd.read_csv(path / "all_records_manifest.csv", dtype={"input_hash_uint64": str})
+          assert len(total) == 20000 and total.record_id.is_unique
+          assert total.split.value_counts().to_dict() == {"train":12824, "validation":3176, "test":4000}
+          assert total.groupby("input_hash_uint64").split.nunique().max() >= 1
+          PY
+      - name: Publish split files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f data/splits/team_stratified_80_20/
+          if ! git diff --cached --quiet; then
+            git commit -m "Save team stratified split manifests [skip ci]"
+            git push origin HEAD:feature/step4-baseline
+          fi
