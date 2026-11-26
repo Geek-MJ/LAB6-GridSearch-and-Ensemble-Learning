@@ -1,43 +1,27 @@
-# Dataset cleaning — GridGuard
+# GridGuard — data quality and cleaning
 
-**Module:** Data preparation · **Owner:** Mahij Khantigiri GOSAI
+**Owner:** Mahij Khantigiri GOSAI
 
-## Decision
+The supplied PowerGraph IEEE-24 extracts contain **1,000 + 19,000 = 20,000** simulated scenarios, with **224 numeric predictors** and the binary target `blackout`.
 
-Both source extracts are already numeric and complete. We therefore do not impute missing values, clip outliers, rescale features, or alter the target. Such operations would be unjustified at this stage. Scaling and feature selection should be fitted only on the training partition, inside a model pipeline (LAB 4).
-
-| Validation | Finding |
-|---|---:|
-| Combined input records | 20,000 |
-| Features | 224 numerical |
-| Missing / infinite values | 0 / 0 |
+| Source-data check | Result |
+| --- | ---: |
+| Rows | 20,000 |
+| Target counts (0 / 1) | 15,968 / 4,032 |
+| Missing cells | 0 |
+| Non-finite feature values | 0 |
 | Invalid target values | 0 |
-| Constant input columns | 0 |
-| Extra copies of identical feature vectors | 1,421 |
-| Conflicting labels for identical feature vectors | 0 |
-| Unique feature vectors | 18,579 |
+| Constant features | 0 |
+| Distinct complete input vectors | 18,579 |
+| Repeated input vectors beyond first occurrence | 1,421 |
+| Conflicting labels for identical input vectors | 0 |
 
-Six input columns are exact copies of other feature columns. They remain in the cleaned datasets so that the original 224-variable schema is stable. Later feature-selection experiments can test whether removing redundant columns helps.
+Six numerical input columns match another column exactly; this was documented, not silently removed.
 
-## Outputs
+**Cleaning decision:** No imputation, scaling, clipping, target changes, or duplicate removal. Repeated inputs can represent simulated outcomes and removing them changes their relative frequencies. Model preprocessing and supervised feature selection must be fitted on training data only.
 
-- `data/processed/validated_20000.csv.gz`: 20,000 scenarios; all feature values and records preserved.
-- `data/processed/unique_18579.csv.gz`: one representative per identical complete feature vector. This optional version has 14,859 class-0 and 3,720 class-1 records.
-- `data/processed/unique_records_manifest.csv`: each retained record's original ID, original train/validation/test split and duplicate-group size.
-- `data/processed/cleaning_summary.json`: counts, duplicate-column pairs, file hashes and validation notes.
+**Primary output:** `data/processed/validated_20000.csv.gz`, the full dataset with all 224 source features retained. The `src/clean_data.py` command validates inputs and recreates that file and `data/processed/cleaning_summary.json`. The two original source files are preserved.
 
-For repository size, GitHub tracks the unique dataset and its manifest. The 20,000-record validated CSV can be regenerated from the two committed original extracts using `python -m src.clean_data`.
+**Splitting:** The latest team-requested 80/20 stratified procedure is in `src/split_data.py` and described in [team_split.md](team_split.md). The earlier group-aware audit split still exists for historical model notebooks; the two procedures must not be mixed.
 
-| Split | Original records | Unique records |
-|---|---:|---:|
-| Training | 13,993 | 13,005 |
-| Validation | 3,010 | 2,787 |
-| Test | 2,997 | 2,787 |
-
-The existing split assignments are retained; duplicates are only removed *within* their assigned split. **Do not** regenerate new random splits on the unique version, or tune feature selection using validation/test labels.
-
-## Interpretation and limitations
-
-Repeated input vectors can be genuine simulated scenarios. Removing them changes the empirical weighting of simulations and slightly changes class prevalence. The original full-data version should remain available for sensitivity comparisons. The available source metadata cannot prove that all features are measured before the simulated cascade. That leakage risk must be resolved before making operational claims.
-
-Reproduce: `python -m src.clean_data`. Verify: `python -m pytest -q tests/test_clean_data.py`.
+**Limits:** Data are simulated rather than observations of real-world blackouts. The source documents do not prove that every predictor would be known before the predicted event. The 80/20 test set has repeated-input overlap with the training pool.
