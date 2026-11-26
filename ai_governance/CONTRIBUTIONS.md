@@ -65,21 +65,26 @@ The notebook discusses a Random Forest model using all features and a threshold 
 
 **Report section:** Advanced classifiers, parameter tuning, feature comparisons, model selection and interpretation.
 
-## 4. Yutong CAO — Evaluation and Decision Tree Experiments
+## 4. Yutong CAO — Evaluation Protocol and Decision Tree Baseline
 
-Yutong's work includes Decision Tree baseline experiments and their evaluation. The full-dataset baseline report identifies Yutong as the contributor.
+Yutong is responsible for the evaluation protocol, threshold selection, final test assessment, error analysis and synthesis of evaluation results.
 
-The notebooks cover an initial experiment with 1,000 records and a second experiment using the complete 20,000-record dataset. They include training and validation results, comparisons with trees of limited depth, threshold analysis, confusion matrices and examination of false positives and false negatives.
+Her work includes developing and evaluating the Decision Tree baseline using the official 20,000-record dataset. She implemented a five-fold Stratified Group Cross-Validation protocol to ensure that identical complete input feature vectors remain in the same fold, preventing exact duplicate inputs from appearing in both training and validation partitions.
 
-The full-dataset report records a test F1-score of 0.9808 with 16 false negatives and 7 false positives under the earlier train/validation/test split. Those figures describe that experiment, not the latest two-file split.
+The experiments compare a default Decision Tree with two controlled-depth Decision Trees using accuracy, precision, recall, F1-score and ROC-AUC. They also include out-of-fold threshold analysis, final evaluation on the untouched test set, confusion matrices and false-positive / false-negative analysis.
+
+The final selected Decision Tree achieved a test F1-score of **0.9803**, with **20 false negatives** and **11 false positives**, on the official test set of 3,982 records. These results are based on simulated PowerGraph data and should not be interpreted as evidence of real-world grid performance.
 
 **Files:**
-- `notebooks/step4_baseline.ipynb`
-- `notebooks/step4_baseline_20000.ipynb`
-- `reports/baseline_evaluation.md`
-- `reports/baseline_evaluation_20000.md`
 
-**Report section:** Decision Tree baseline, validation and test results, threshold comparison, error analysis and interpretation.
+- `notebooks/step4_baseline_20000_team_split.ipynb`
+- `reports/baseline_evaluation_20000.md`
+- `reports/decision_tree_final_results.csv`
+- `reports/decision_tree_threshold_analysis.csv`
+- `reports/decision_tree_test_errors.csv`
+- `reports/decision_tree_error_feature_analysis.csv`
+
+**Report section:** Decision Tree baseline, grouped cross-validation, threshold analysis, final test evaluation, error analysis and interpretation.
 
 ## Shared Work
 
