@@ -13,7 +13,7 @@ A binary classifier predicts whether a simulated scenario results in unmet elect
 | **Mahij Khantigiri GOSAI** | Dataset provenance; quality and leakage audit; exploratory analysis; train/test splitting | [Executed data-audit notebook](notebooks/01_data_audit_executed.ipynb), [audit](src/audit.py), [cleaning](src/clean_data.py), [team split](src/split_data.py), [audit report](reports/data_audit.md), [split report](reports/team_split.md) |
 | **Soukaina BAHAMI** | Preprocessing pipeline; DummyClassifier and Logistic Regression baselines; initial metrics and confusion matrices | [Evaluation report](reports/EVALUATION_RESULTS_SOUKAINA.md) and [evaluation script](src/evaluate.py) |
 | **Anais KAMTCHOUANG NONO** | Two advanced classifiers; hyperparameter tuning; comparison against baselines; feature importance | [Advanced-model notebook](notebooks/task3.ipynb) and [related evaluation report](reports/evaluation_anais/evaluation_report.md) |
-| **Yutong CAO** | Evaluation protocol; validation threshold selection; final test evaluation; error analysis; results synthesis | [Decision Tree notebook](notebooks/step4_baseline_20000.ipynb) and [baseline report](reports/baseline_evaluation_20000.md) |
+| **Yutong CAO** | Evaluation protocol; grouped cross-validation; threshold analysis; final test evaluation; error analysis; results synthesis | [Decision Tree notebook](notebooks/step4_baseline_20000_team_split.ipynb) and [baseline report](reports/baseline_evaluation_20000.md) |
 
 ## Training and test data
 
