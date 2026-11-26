@@ -1,104 +1,88 @@
-# GridGuard — Individual Contributions
+# GridGuard — Team Contributions
 
-**Project:** Prediction of unsupplied electricity demand in PowerGraph IEEE-24 simulations.  
-**Dataset:** 20,000 simulated observations, 224 numerical predictors and the binary target `blackout`.
+**Project:** Classification of supply disruption in simulated IEEE-24 power networks  
+**Dataset:** PowerGraph, 20,000 scenarios, 224 input variables and the target `blackout`
 
-This document separates the team's **assigned responsibilities** from work visible in the repository. The notebook contents, saved reports, code and relevant Git commits were inspected; the experiments were **not rerun** for this review. All four students should confirm the final attribution before submission.
+This document summarizes the four parts of the project and the corresponding notebooks, scripts and reports.
 
-## Responsibility Matrix
+| Member | Project responsibility |
+| --- | --- |
+| Mahij Khantigiri GOSAI | Data collection and verification, exploratory analysis, cleaning and splitting |
+| Soukaina BAHAMI | Data preprocessing, baseline models and model evaluation |
+| Anais KAMTCHOUANG NONO | Advanced models, hyperparameter tuning and feature analysis |
+| Yutong CAO | Evaluation, comparison of results, threshold analysis and interpretation |
 
-| Student | Assigned responsibilities | Identifiable work |
-| --- | --- | --- |
-| Mahij Khantigiri GOSAI | Dataset provenance, quality and leakage audit, exploratory analysis, train/test splitting | Data-audit notebook, EDA figures, audit and split code, checked train/test exports |
-| Soukaina BAHAMI | Preprocessing, DummyClassifier and Logistic Regression baselines, initial metrics and confusion matrices | Evaluation code committed through Soukaina-associated accounts, model comparisons, threshold and error analysis, named evaluation synthesis |
-| Anais KAMTCHOUANG NONO | Two advanced classifiers, tuning, baseline comparisons, feature importance | Uploaded advanced-model notebook studying Random Forest, Gradient Boosting, grid searches and feature analyses |
-| Yutong CAO | Evaluation protocol, threshold selection, final test assessment, error analysis, results synthesis | Decision Tree notebooks and baseline reports, including the full-dataset report explicitly crediting Yutong |
+## 1. Mahij Khantigiri GOSAI — Data Preparation
 
-## 1. Mahij Khantigiri GOSAI — Data Analysis and Preparation
+My part focused on preparing the dataset for the classification experiments.
 
-### Work performed
+I examined the two PowerGraph extracts, containing 1,000 and 19,000 scenarios, and checked their columns, missing values, target distribution and repeated inputs. The combined dataset contains 20,000 rows and 224 numerical features. I also prepared exploratory plots showing class distribution, feature groups, duplicates and correlations.
 
-The data-preparation module documents the origin of the 1,000-row and 19,000-row PowerGraph extracts, their schema and the binary classification target. It examines missing or non-finite values, target distribution, repeated complete input vectors, label consistency, overlap between the supplied extracts and possible information leakage. Exploratory figures describe class counts, feature families, duplicate groups, differences between classes and feature correlations.
+The final data split uses approximately 80% of the records for training and 20% for testing. Identical input vectors are kept in the same partition to prevent duplicate records from appearing in both files. The final outputs are `train.csv` with 16,018 records and `test.csv` with 3,982 records. The split checks found no identical complete input vectors shared between the files.
 
-The dataset splitting procedure was revised after a conventional stratified outer split allowed duplicate-input overlap. The current procedure assigns identical complete input vectors to the same group, then stratifies the distinct groups and exports **16,018 training** and **3,982 testing** records. Verification found **zero identical complete feature vectors shared across the two exported datasets**. All 20,000 original observations are retained.
+**Files:**
+- `notebooks/01_data_audit_executed.ipynb`
+- `src/audit.py`, `src/clean_data.py`, `src/split_data.py`
+- `tests/test_clean_data.py`, `tests/test_splits.py`, `tests/test_team_split.py`
+- `data/processed/train.csv`, `data/processed/test.csv`
+- `figures/01_target_by_extract.png` to `figures/05_feature_correlations.png`
+- `reports/data_audit.md`, `reports/cleaning.md`, `reports/team_split.md`
 
-### Deliverables and evidence
+**Report section:** Dataset description, data quality, exploratory analysis, cleaning decisions and train/test splitting.
 
-- `notebooks/01_data_audit_executed.ipynb` — executed provenance, audit, exploratory analysis and splitting notebook.
-- `src/audit.py`, `src/clean_data.py`, `src/split_data.py` — reproducible audit, validation and splitting implementations.
-- `tests/test_clean_data.py`, `tests/test_splits.py`, `tests/test_team_split.py` — recorded quality and split checks.
-- `data/processed/train.csv` and `data/processed/test.csv` — current two-file dataset handoff.
-- `figures/01_target_by_extract.png` through `figures/05_feature_correlations.png` — exploratory figures.
-- `reports/data_audit.md`, `reports/cleaning.md`, `reports/team_split.md` — data-methodology reports.
+## 2. Soukaina BAHAMI — Preprocessing and Model Evaluation
 
-### Individual report contribution and limitations
+Soukaina's assigned work covers preprocessing, DummyClassifier and Logistic Regression baselines, and initial evaluation metrics. Her evaluation work also covers comparisons between classifiers, threshold analysis and classification errors.
 
-Dataset provenance, integrity findings, exploratory evidence, duplicate-input leakage, split methodology and reproducibility. Exact-input separation does not prove complete independence among related simulations. Whether all source features are available before the simulated disruption has not been independently established.
+The repository includes an evaluation script with preprocessing for Logistic Regression and comparisons involving DummyClassifier, Decision Tree, Random Forest and Gradient Boosting. The evaluation reports include precision, recall, F1-score, confusion matrices and error analysis. The saved results include experiments carried out with an earlier dataset split.
 
-## 2. Soukaina BAHAMI — Preprocessing, Baselines and Evaluation Implementation
+**Files linked to this work:**
+- `src/evaluate.py`
+- `reports/EVALUATION_RESULTS_SOUKAINA.md`
+- `reports/evaluation_anais/evaluation_report.md`
+- `reports/evaluation_anais/validation_model_comparison.csv`
+- `reports/evaluation_anais/validation_threshold_comparison.csv`
+- `reports/evaluation_anais/test_predictions.csv`
+- `reports/evaluation_anais/test_errors.csv`
 
-### Assigned responsibilities and work found
+**Report section:** Preprocessing, baseline comparisons, evaluation metrics, threshold decisions and error analysis.
 
-The assigned work package covers preprocessing, DummyClassifier and Logistic Regression baselines, and initial metrics and confusion matrices.
+*The evaluation files include work linked to Anais's experiments, so the two contributors should confirm which parts of the shared evaluation they prepared.*
 
-Git history associates `src/evaluate.py` and its revisions with `bahamisoukaina1-ai` and `soukaina188`. The current script includes a pipeline using StandardScaler with Logistic Regression, a DummyClassifier reference, Decision Tree, Random Forest and Histogram Gradient Boosting candidates, cross-validation, comparison metrics, threshold selection, confusion-matrix outputs and error-analysis exports. The script was inspected but not executed during this review.
+## 3. Anais KAMTCHOUANG NONO — Advanced Models
 
-The report `reports/EVALUATION_RESULTS_SOUKAINA.md` documents the earlier model-evaluation protocol, Random Forest hyperparameter and threshold decisions, confusion matrix, errors by source extract and results synthesis. The saved `reports/evaluation_anais/` metrics and figures were also committed through a Soukaina-associated account, although they refer to Anais's model-selection work. This supports evaluation activity but not exclusive authorship of the model-development decisions.
+Anais's part focuses on developing and comparing advanced classification models.
 
-The historical synthesis reports **93.45% test accuracy, 96.28% recall and 30 false negatives** on an earlier train/validation/test protocol. It does **not** establish results on the present train.csv and test.csv.
+Her notebook contains Random Forest and Gradient Boosting experiments, hyperparameter searches using `GridSearchCV`, comparisons using different sets of features, and analysis of precision, recall and decision thresholds. It also examines feature importance and compares model configurations.
 
-### Deliverables and evidence
+The notebook discusses a Random Forest model using all features and a threshold of 0.50. These results belong to the recorded experiments and should be evaluated again if the final comparison uses the latest training and test files.
 
-- `src/evaluate.py` and `src/README.md` — evaluation code and execution notes.
-- `reports/EVALUATION_RESULTS_SOUKAINA.md` — evaluation and interpretation report.
-- `reports/evaluation_anais/evaluation_report.md`, `validation_model_comparison.csv`, `validation_threshold_comparison.csv`, `test_predictions.csv` and `test_errors.csv` — historical saved outputs associated with evaluation work.
+**Files:**
+- `notebooks/task3.ipynb`
+- `reports/evaluation_anais/evaluation_report.md` (shared evaluation work)
+- `reports/evaluation_anais/feature_importance.csv` (shared evaluation work)
+- `figures/evaluation_anais/random_forest_feature_importance.png` (shared evaluation work)
 
-### Individual report contribution and review point
+**Report section:** Advanced classifiers, parameter tuning, feature comparisons, model selection and interpretation.
 
-Preprocessing/baseline methodology where personally implemented, model-evaluation design, classification results, threshold trade-offs and error analysis. **Soukaina should confirm exactly which baseline implementations and saved result files she produced**, including any shared work with Anais. The latest evaluation script and model claims still require confirmation on the team's current dataset partition.
+## 4. Yutong CAO — Evaluation and Decision Tree Experiments
 
-## 3. Anais KAMTCHOUANG NONO — Advanced Classifier Development
+Yutong's work includes Decision Tree baseline experiments and their evaluation. The full-dataset baseline report identifies Yutong as the contributor.
 
-### Work performed in the recorded notebook
+The notebooks cover an initial experiment with 1,000 records and a second experiment using the complete 20,000-record dataset. They include training and validation results, comparisons with trees of limited depth, threshold analysis, confusion matrices and examination of false positives and false negatives.
 
-The notebook `notebooks/task3.ipynb` was uploaded by the GitHub account `ANANONO`. It includes **Random Forest and Gradient Boosting** classifiers, hyperparameter searches using GridSearchCV, evaluation of alternative feature sets, model comparisons, decision-threshold analysis and feature-importance inspection. Its concluding discussion favors Random Forest with all variables and a decision threshold of 0.50 based on the observed recall and false-alarm trade-off.
+The full-dataset report records a test F1-score of 0.9808 with 16 false negatives and 7 false positives under the earlier train/validation/test split. Those figures describe that experiment, not the latest two-file split.
 
-Related saved reports under `reports/evaluation_anais/` present a Random Forest comparison, threshold tables and feature importance. Because those reports were committed by a Soukaina-associated account, their exact ownership should be jointly confirmed before including them as Anais's individual deliverables.
+**Files:**
+- `notebooks/step4_baseline.ipynb`
+- `notebooks/step4_baseline_20000.ipynb`
+- `reports/baseline_evaluation.md`
+- `reports/baseline_evaluation_20000.md`
 
-### Deliverables and evidence
+**Report section:** Decision Tree baseline, validation and test results, threshold comparison, error analysis and interpretation.
 
-- `notebooks/task3.ipynb` — advanced-model experiments, grid searches and feature comparisons.
-- `reports/evaluation_anais/evaluation_report.md`, `validation_model_comparison.csv` and `feature_importance.csv` — related historical result artifacts, with shared attribution to confirm.
-- `figures/evaluation_anais/random_forest_feature_importance.png` and related evaluation plots.
+## Shared Work
 
-### Individual report contribution and limitations
+The four parts are connected through the common PowerGraph dataset. Dataset preparation provides the training and test files, the modeling work compares classification methods, and the evaluation work examines predictive performance and errors.
 
-Advanced-classifier selection, tuning and comparisons, feature analysis and classification-threshold decisions. The inspected notebook references a missing `blackout.csv` and an undefined `redundancy_columns` variable; its tuning/validation sequence also requires methodological review. **These limitations remain unresolved in that notebook**. The report should not claim that its experiments are fully reproducible on the latest train/test exports without a verified new run.
-
-## 4. Yutong CAO — Evaluation and Decision Tree Baseline Analysis
-
-### Work performed in the recorded notebooks
-
-The report `reports/baseline_evaluation_20000.md` explicitly names **Yutong Cao** as the contributor. Commits from `Alaia1023` added `notebooks/step4_baseline.ipynb` and `notebooks/step4_baseline_20000.ipynb`, together with Decision Tree baseline reports.
-
-The notebooks document data checks, group-aware historical partitions, Decision Tree training, comparisons against trees with restricted depth and leaf size, validation metrics, threshold analysis, final test confusion matrices and false-positive/false-negative inspection. The initial evaluation uses a 1,000-record subset; the extended report uses all 20,000 records.
-
-The full-dataset historical report records **99.23% accuracy**, **97.36% recall**, **16 false negatives** and **7 false positives** under the earlier 13,993/3,010/2,997 split. These are **not** test results for the current two-file partition.
-
-### Deliverables and evidence
-
-- `notebooks/step4_baseline.ipynb` and `notebooks/step4_baseline_20000.ipynb`.
-- `reports/baseline_evaluation.md` and `reports/baseline_evaluation_20000.md`.
-- Historical partition manifests under `data/splits/` used by the recorded experiments.
-
-### Individual report contribution and review point
-
-Baseline evaluation protocols, controlled model comparison, validation and test metrics, threshold analysis, confusion-matrix interpretation and limitations. **Yutong should confirm the relationship between this identifiable Decision Tree work and the assigned responsibility for the final model evaluation and synthesis**, including whether additional final-evaluation artifacts were produced.
-
-## Final Attribution and Consistency Review
-
-Each student should confirm the precise code, analysis, tests and report sections they actually authored. The original task allocations do not match every repository contribution: Decision Tree baseline work is explicitly credited to Yutong, while broader evaluation files have commits associated with Soukaina. Related work must be credited to the appropriate contributors rather than assigned solely from directory names.
-
-Saved model results use different, historical train/validation/test partitions. The current 16,018-row training file and 3,982-row test file are a newer handoff. **The historical metrics cannot be claimed as final performance on these two files.** Any current-protocol comparison or final evaluation must be demonstrated by a separately verified run.
-
-**Status:** Four evidence-based contribution sections drafted. Individual attribution and final submission approval remain subject to each member's review.
+Some reports contain results from earlier dataset partitions. Results included in the final project comparison should use the same agreed evaluation procedure. Each member is responsible for checking their section and confirming any work completed jointly with another member.
