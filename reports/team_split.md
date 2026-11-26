@@ -6,12 +6,12 @@ This implements the team's requested `train_test_split(..., test_size=0.20, rand
 
 | Partition | Records | `blackout=0` | `blackout=1` |
 |---|---:|---:|---:|
-| Train | 12,824 | 10,259 | 2,565 |
-| Validation | 3,176 | 2,515 | 661 |
+| Train | Generated from the current source | See split summary | See split summary |
+| Validation | Generated from the current source | See split summary | See split summary |
 | Test | 4,000 | 3,194 | 806 |
 | **Total** | **20,000** | **15,968** | **4,032** |
 
-The initial 80/20 split itself preserves the target-class distribution. The group-aware validation split does not enforce exact stratification.
+The initial 80/20 split itself preserves the target-class distribution. The group-aware validation split does not enforce exact stratification. On current data, a rerun produced 12,728 train and 3,272 validation records, not the 12,824/3,176 reported in the older saved evaluation. Do not mix the older evaluation metrics with these newly generated partitions.
 
 ## Files
 
