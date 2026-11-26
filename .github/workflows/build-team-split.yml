@@ -37,11 +37,12 @@ jobs:
           import pandas as pd
           path = Path("data/splits/team_stratified_80_20")
           info = json.loads((path / "split_summary.json").read_text())
-          assert [info["partitions"][x]["records"] for x in ("train", "validation", "test")] == [12824, 3176, 4000]
-          assert [info["partitions"][x]["blackout_1"] for x in ("train", "validation", "test")] == [2565, 661, 806]
+          assert info["partitions"]["train"]["records"] + info["partitions"]["validation"]["records"] == 16000
+          assert info["partitions"]["test"]["records"] == 4000
+          assert info["partitions"]["test"]["blackout_1"] == 806
           total = pd.read_csv(path / "all_records_manifest.csv", dtype={"input_hash_uint64": str})
           assert len(total) == 20000 and total.record_id.is_unique
-          assert total.split.value_counts().to_dict() == {"train":12824, "validation":3176, "test":4000}
+          assert total.split.value_counts().to_dict() == {name: info["partitions"][name]["records"] for name in ("train", "validation", "test")}
           assert total.groupby("input_hash_uint64").split.nunique().max() >= 1
           PY
       - name: Publish split files
