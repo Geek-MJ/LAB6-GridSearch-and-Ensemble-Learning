@@ -37,19 +37,18 @@ Reviewing the notebook’s execution order revealed that X_val was extracted fro
 **Correction and validation:**  
 The dataset split was moved before all training and hyperparameter searches. Scenarios with identical bus states were kept in the same partition, and feature selection and scaling were placed inside the cross-validation pipelines. Reduced-grid checks on a 1,200-row sample confirmed that selectors used only their fold’s training rows and that the corrected partitions shared no bus-state groups.
 
-## 4. Yutong CAO — Evaluation Error
+## 4. Yutong CAO — Evaluation Workflow Error
 
-**Original AI-output flaw:**
+**Original AI-output flaw:**  
+During the implementation of out-of-fold evaluation, the AI incorrectly assumed that `oof_predictions` was a dictionary containing predictions for each model. In the actual notebook, the variable was a NumPy array with 16,018 elements. Instructions based on the incorrect variable structure would therefore fail when accessing predictions by model name.
 
-During the out-of-fold prediction workflow, the AI assistant incorrectly assumed that `oof_predictions` was a dictionary indexed by model name. In the notebook at that point, the variable was actually a NumPy array with shape `(16018,)`. The suggested instructions therefore did not match the notebook's real variable structure.
+**How it was detected and why it matters:**  
+The variable's actual type and shape were inspected in the notebook. This revealed that the proposed access pattern did not match the existing implementation. Incorrect assumptions about stored predictions could lead to failed evaluation code or confusion between model outputs.
 
-**How it was detected and why it matters:**
+**Correction and validation:**  
+The out-of-fold workflow was corrected to store predictions and probabilities in separate dictionaries keyed by model name. All three Decision Tree models were then evaluated across five grouped folds. Each model produced 16,018 out-of-fold predictions and probabilities, and the checks confirmed zero shared groups between training and validation folds.
 
-I checked the actual variable type and shape in the notebook and found that `oof_predictions` was a NumPy array rather than a dictionary. Following the incorrect assumption would have caused errors when accessing predictions by model name and could have disrupted the comparison of the three Decision Tree models. This was caught before the final evaluation results were reported.
+The corrected results were used in `notebooks/step4_baseline_20000_team_split.ipynb` and checked against `reports/baseline_evaluation_20000.md` and the supporting evaluation CSV files.
 
-**Correction and validation:**
-
-The out-of-fold workflow was corrected to store predictions and probabilities in separate dictionaries, with one array per model. I reran the five-fold grouped cross-validation and checked that each model had 16,018 out-of-fold predictions and probabilities. I also verified that identical complete feature-vector groups did not overlap between the training and validation portions of any fold. The corrected results were then used for model comparison, threshold analysis and the final evaluation report.
-
-**Files checked:** `notebooks/step4_baseline_20000_team_split.ipynb`, `reports/baseline_evaluation_20000.md`, `reports/decision_tree_final_results.csv`, `reports/decision_tree_threshold_analysis.csv`.
+The issue was corrected before the final reported test evaluation; it did not invalidate the final published metrics.
 
