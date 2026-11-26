@@ -30,14 +30,12 @@ This file records errors we found while using AI assistance, how we corrected th
 ## 3. Anais KAMTCHOUANG NONO — Advanced Model Error
 
 **Original AI-output flaw:**  
-[Add the AI error identified in this part of the project.]
+The earlier AI-provided workflow ran the Random Forest GridSearch before creating the validation set. As a result, observations later assigned to validation had already influenced hyperparameter selection.
 
 **How it was detected and why it matters:**  
-[Explain how the error was found and why it matters.]
-
+Reviewing the notebook’s execution order revealed that X_val was extracted from X_train after the GridSearch. This introduced data leakage and could make validation results overly optimistic.
 **Correction and validation:**  
-[Describe the correction and link to the code, output or test used to check it.]
-
+The dataset split was moved before all training and hyperparameter searches. Scenarios with identical bus states were kept in the same partition, and feature selection and scaling were placed inside the cross-validation pipelines. Reduced-grid checks on a 1,200-row sample confirmed that selectors used only their fold’s training rows and that the corrected partitions shared no bus-state groups.
 ## 4. Yutong CAO — Evaluation Error
 
 **Original AI-output flaw:**  
