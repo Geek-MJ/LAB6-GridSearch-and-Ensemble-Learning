@@ -1,50 +1,50 @@
 # GridGuard — Audit of AI-Assisted Work
 
-The project requires **at least four concrete problems detected in AI-generated outputs**, with **at least one genuinely detected and corrected problem per student**. Each entry must state the original flaw, how it was discovered, its consequences, the correction and verifiable evidence. Do not invent errors or claim that an issue was fixed if it was only identified.
+This file records errors we found while using AI assistance, how we corrected them and the files we checked afterwards. Each member has a section for an example from their own part of the project.
 
 ## 1. Mahij Khantigiri GOSAI — Input Duplication Across Data Partitions
 
-**Problem in an earlier AI-assisted implementation:** The earlier approach used a conventional row-wise stratified train/test split. Stratification preserved the target-class distribution but did not keep identical input records together.
+**Initial problem:** The earlier approach used a conventional row-wise stratified train/test split. Stratification preserved the target-class distribution but did not keep identical input records together.
 
-**Detection:** The project audit reported **447 test records with complete feature vectors also present in the original training pool**. That is a duplicate-input overlap across the outer split.
+**How I found it:** I checked the earlier split and found **447 test records with complete feature vectors also present in the original training pool**. The same input values were present in training and testing.
 
-**Why it matters:** A model could encounter an identical input record during training and testing, making performance estimates optimistic for unseen input configurations.
+**Impact:** Repeated inputs in training and testing can make performance look better than it would on new input configurations.
 
-**Correction:** Complete input vectors were grouped before partitioning. Unique groups were divided into training and test partitions using stratification on the binary target, after which all 20,000 original records inherited their group's assignment. No standalone validation dataset was exported.
+**Correction:** I grouped identical complete input vectors before splitting, then divided the groups using stratification on `blackout`. All 20,000 records were retained and assigned to training or testing. I did not create a separate validation file.
 
-**Verification:** The current `train.csv` contains **16,018** records and `test.csv` contains **3,982**. Automated verification confirmed **zero identical complete feature vectors shared across the exported files**. Evidence: `src/split_data.py`, `tests/test_team_split.py`, `notebooks/01_data_audit_executed.ipynb` and `reports/team_split.md`.
+**Result:** `train.csv` contains **16,018** records and `test.csv` contains **3,982**. The checks found **no identical complete feature vectors across the two files**. The code and results are in `src/split_data.py`, `tests/test_team_split.py`, `notebooks/01_data_audit_executed.ipynb` and `reports/team_split.md`.
 
-**Residual limitations:** Exact-input separation does not prove that different simulation configurations are independent. Predictor availability before the simulated outcome remains unresolved.
+**Limitations:** Different records may still describe related simulation conditions. The source documents also do not fully establish when every feature is measured.
 
 ## 2. Soukaina BAHAMI — Baseline / Preprocessing Error
 
 **Original AI-output flaw:**  
-[Describe one real AI-generated error you found in your module.]
+[Add the AI error identified in this part of the project.]
 
 **How it was detected and why it matters:**  
-[Explain the actual failed check, incorrect result or methodological issue.]
+[Explain how the error was found and why it matters.]
 
 **Correction and validation:**  
-[Describe the actual fix and cite the source file, test or result that demonstrates it.]
+[Describe the correction and link to the code, output or test used to check it.]
 
 ## 3. Anais KAMTCHOUANG NONO — Advanced Model Error
 
 **Original AI-output flaw:**  
-[Describe one real AI-generated error you found in your module.]
+[Add the AI error identified in this part of the project.]
 
 **How it was detected and why it matters:**  
-[Explain the actual failed check, incorrect result or methodological issue.]
+[Explain how the error was found and why it matters.]
 
 **Correction and validation:**  
-[Describe the actual fix and cite the source file, test or result that demonstrates it.]
+[Describe the correction and link to the code, output or test used to check it.]
 
 ## 4. Yutong CAO — Evaluation Error
 
 **Original AI-output flaw:**  
-[Describe one real AI-generated error you found in your module.]
+[Add the AI error identified in this part of the project.]
 
 **How it was detected and why it matters:**  
-[Explain the actual failed check, incorrect result or methodological issue.]
+[Explain how the error was found and why it matters.]
 
 **Correction and validation:**  
-[Describe the actual fix and cite the source file, test or result that demonstrates it.]
+[Describe the correction and link to the code, output or test used to check it.]
