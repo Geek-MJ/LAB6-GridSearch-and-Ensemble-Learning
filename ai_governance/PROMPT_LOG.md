@@ -2,22 +2,34 @@
 
 We have organized the AI prompts used during the project by student. Each section includes the request, the information provided and the checks carried out on the result.
 
-## 1. Mahij Khantigiri GOSAI — Data Splitting and Leakage Check
+## 1. Mahij Khantigiri GOSAI — Data Audit and Train/Test Split
 
-**Task:** Correct the training and test split after finding identical input records across partitions.
+**Prompt prepared for a new review (not an earlier chat message):**
 
-**Recorded prompt:**
-> ok lets do that in the notebook and push the result ok?
+> I want you to go through my GridGuard data preparation part properly and check whether everything is correct or not.
+> 
+> We are using the PowerGraph IEEE-24 dataset with 20,000 records, 224 numerical features and blackout as the target (0 or 1). From my initial audit I found 18,579 unique input combinations and 1,421 repeated records. There are no missing or infinite values.
+> 
+> Here's what I need you to check:
+> 
+> 1. First verify the dataset, class distribution, duplicates and whether any identical inputs have different target values.
+> 2. Check my train test split. I want approximately 80/20 using random_state=42 and stratification so the blackout ratio stays similar.
+> 3. One important thing is the duplicates. I dont want identical input values appearing in both train and test because that can cause data leakage. Keep all the original records but make sure repeated inputs stay in the same split.
+> 4. Make sure blackout is only used as the target and not included when grouping the input features.
+> 5. Check that preprocessing, feature selection and model tuning are done only on training data. We can use cross validation for this, but the final test set should stay separate.
+> 6. Also check for other leakage risks, especially if some simulation records are related or if any features contain information from after the blackout event.
+> 
+> Once done, give me the exact train and test sizes, class distribution and duplicate overlap. Also make sure the split is reproducible and add proper checks in the code.
+> 
+> Dont just assume everything is correct. If something is wrong, explain the issue, why it matters and what needs to change. Keep the explanation simple but technically correct.
+> 
+> Use the actual dataset and code to verify the results. Dont make up numbers or say there's no leakage unless we have checked it properly.
 
-This was part of a longer discussion about the split. The agreed requirements were to keep all 20,000 records, create only `train.csv` and `test.csv`, and prevent identical complete input vectors from appearing in both files.
+**Why I wrote this:** I wanted a proper check of the data audit and the splitting method, especially duplicate inputs crossing the train/test boundary. I included the dataset structure, split settings, leakage risks and the checks I expected to see in the response.
 
-**Data and constraints:** The PowerGraph dataset has 224 numerical features and the binary target `blackout`. The split uses `random_state=42`, target stratification and an approximately 80/20 ratio. Identical feature vectors are assigned to the same group before splitting. The test set is kept separate from model selection; cross-validation can be performed on the training set.
+**Previous results to compare with:** My existing split produced 16,018 training records and 3,982 test records, with no identical complete input vectors shared between the files. Those results come from the earlier work, not from running this new prompt.
 
-**How I used AI:** I used the response to revise `src/split_data.py`, document the method in my notebook and add checks for duplicate inputs across the exported files.
-
-**Verification:** The final files contain **16,018 training** and **3,982 testing** records, covering all 20,000 observations. The checks found **zero identical complete feature vectors shared between the files**.
-
-**Files:** `notebooks/01_data_audit_executed.ipynb`, `src/split_data.py`, `tests/test_team_split.py`, `reports/team_split.md`.
+**Project files:** `notebooks/01_data_audit_executed.ipynb`, `src/split_data.py`, `tests/test_team_split.py`, `reports/team_split.md`.
 
 ## 2. Soukaina BAHAMI — Preprocessing and Baseline Models
 
