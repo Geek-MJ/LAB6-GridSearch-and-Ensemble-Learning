@@ -16,12 +16,12 @@ The supplied PowerGraph IEEE-24 extracts contain **1,000 + 19,000 = 20,000** sim
 | Repeated input vectors beyond first occurrence | 1,421 |
 | Conflicting labels for identical input vectors | 0 |
 
-Six numerical input columns match another column exactly; this was documented, not silently removed.
+Six numerical input columns match another column exactly. We recorded this finding and kept the columns in the validated dataset.
 
-**Cleaning decision:** No imputation, scaling, clipping, target changes, or duplicate removal. Repeated inputs can represent simulated outcomes and removing them changes their relative frequencies. Model preprocessing and supervised feature selection must be fitted on training data only.
+**Cleaning:** We kept the original values, labels and repeated records. No missing-value imputation, scaling, clipping or duplicate removal was applied at this stage. Model preprocessing and supervised feature selection use training data.
 
-**Primary output:** `data/processed/validated_20000.csv.gz`, the full dataset with all 224 source features retained. The `src/clean_data.py` command validates inputs and recreates that file and `data/processed/cleaning_summary.json`. The two original source files are preserved.
+**Validated dataset:** `data/processed/validated_20000.csv.gz`, the full dataset with all 224 source features retained. The `src/clean_data.py` command validates inputs and recreates that file and `data/processed/cleaning_summary.json`. The two original source files are preserved.
 
-**Splitting:** The latest team-requested 80/20 stratified procedure is in `src/split_data.py` and described in [team_split.md](team_split.md). The earlier group-aware audit split still exists for historical model notebooks; the two procedures must not be mixed.
+**Train/test split:** The current procedure is in `src/split_data.py` and [team_split.md](team_split.md). The earlier three-way manifests are still available for the original experiments.
 
-**Limits:** Data are simulated rather than observations of real-world blackouts. The source documents do not prove that every predictor would be known before the predicted event. The 80/20 test set has repeated-input overlap with the training pool.
+**Limitations:** The dataset contains simulations rather than real-world blackout observations, and the source documents do not confirm when every predictor is measured. The current training and test files have **zero identical complete input vectors in common**.
