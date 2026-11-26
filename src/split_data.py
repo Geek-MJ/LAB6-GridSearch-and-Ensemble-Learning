@@ -1,104 +1,137 @@
-"""Create the team's 80/20 train/test CSVs without duplicate-input overlap.
+"""Canonical, retrospective group-disjoint GridGuard protocol.
 
-Duplicates are grouped first, then the distinct groups are split with
-stratify=their blackout labels. All 20,000 rows are retained; there is no
-separate validation dataset. Model selection should use CV within train.csv.
-
-Run from repository root: python -m src.split_data
+Groups are complete 72-variable bus configurations. All model families use the
+same persisted row assignments; no estimator or metric is used to choose a split.
+Historical row-random manifests remain unchanged in their existing directory.
 """
-from __future__ import annotations
-
-import json
 from pathlib import Path
+import hashlib
+import json
 
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GroupShuffleSplit
 
 ROOT = Path(__file__).resolve().parents[1]
-DATA_PATH = ROOT / "data" / "processed" / "validated_20000.csv.gz"
-OUTPUT_DIR = ROOT / "data" / "processed"
+DATA = ROOT / "data" / "processed" / "validated_20000.csv.gz"
+ORIGINAL_MANIFEST = ROOT / "data" / "splits" / "all_records_manifest.csv"
+OUTPUT = ROOT / "data" / "splits" / "corrected_grouped"
 TARGET = "blackout"
-SEED = 42
+SEED = 2026
+PROTOCOL_VERSION = "grouped-bus-v1"
 
 
-def make_splits(save: bool = True):
-    """Split unique feature-vector groups; keep every source record."""
-    df = pd.read_csv(DATA_PATH)
-    if df.shape != (20000, 225) or TARGET not in df:
-        raise ValueError("Expected 20,000 observations, 224 features and blackout.")
-    if df.isna().any().any() or not df[TARGET].isin([0, 1]).all():
-        raise ValueError("Missing or invalid data values.")
+def group_ids(X):
+    """Hash bus configurations without labels, record IDs or source IDs."""
+    bus_columns = [name for name in X if name.startswith("bus_")]
+    if len(bus_columns) != 72:
+        raise ValueError("Expected exactly 72 bus features.")
+    return pd.util.hash_pandas_object(X[bus_columns], index=False).to_numpy()
 
+
+def choose_partitions(y, groups, seed=SEED, candidates=60):
+    """Choose approximate 70/15/15 groups by size and class balance only."""
+    y = np.asarray(y)
+    groups = np.asarray(groups)
+    if len(y) != len(groups) or len(y) == 0:
+        raise ValueError("Labels and groups must be nonempty and aligned.")
+    indices = np.arange(len(y))
+    best = None
+    for offset in range(candidates):
+        outer = GroupShuffleSplit(n_splits=1, test_size=.30, random_state=seed+offset)
+        train, held = next(outer.split(indices, y, groups))
+        inner = GroupShuffleSplit(n_splits=1, test_size=.5, random_state=seed+1000+offset)
+        validation_rel, test_rel = next(inner.split(held, y[held], groups[held]))
+        validation, test = held[validation_rel], held[test_rel]
+        parts = (train, validation, test)
+        if any(len(np.unique(y[p])) < 2 for p in parts):
+            continue
+        cost = 10*np.square(np.array([len(p)/len(y) for p in parts])-[.7,.15,.15]).sum()
+        cost += np.square(np.array([y[p].mean() for p in parts])-y.mean()).sum()
+        if best is None or cost < best[0]:
+            best = (float(cost), offset, parts)
+    if best is None:
+        raise ValueError("No group-disjoint partition containing both classes.")
+    parts = dict(zip(("train", "validation", "test"), best[2]))
+    check_isolation(parts, groups, len(y))
+    return parts, best[1]
+
+
+def check_isolation(parts, groups, n):
+    combined = np.concatenate(list(parts.values()))
+    if len(combined) != n or not np.array_equal(np.sort(combined), np.arange(n)):
+        raise ValueError("Partitions must cover each row exactly once.")
+    names = list(parts)
+    for i, name in enumerate(names):
+        for other in names[i+1:]:
+            if set(groups[parts[name]]) & set(groups[parts[other]]):
+                raise ValueError(f"Group overlap: {name}/{other}")
+
+
+def frame_fingerprint(frame):
+    return hashlib.sha256(pd.util.hash_pandas_object(frame, index=False).to_numpy().tobytes()).hexdigest()
+
+
+def make_splits(save=True, *, data=None, original=None):
+    """Reuse already loaded frames when supplied; validate source values once."""
+    df = pd.read_csv(DATA) if data is None else data
+    if df.shape != (20000, 225) or TARGET not in df or not df.columns.is_unique:
+        raise ValueError("Expected 20,000 rows, 224 inputs and one target.")
     X = df.drop(columns=TARGET)
-    y = df[TARGET].astype(int)
-
-    # Every exact identical input vector receives the same group ID.
-    fingerprints = pd.util.hash_pandas_object(X, index=False)
-    group_ids, _ = pd.factorize(fingerprints, sort=False)
-    group_table = pd.DataFrame({"group": group_ids, TARGET: y})
-    if group_table.groupby("group")[TARGET].nunique().max() != 1:
-        raise ValueError("Identical feature vectors have conflicting labels.")
-    unique_groups = group_table.drop_duplicates(subset="group")
-
-    # Stratify UNIQUE groups, not individual records: duplicates cannot cross.
-    train_groups, test_groups = train_test_split(
-        unique_groups["group"].to_numpy(),
-        test_size=0.20,
-        random_state=SEED,
-        stratify=unique_groups[TARGET],
-    )
-    train_mask = np.isin(group_ids, train_groups)
-    test_mask = np.isin(group_ids, test_groups)
-    assert np.all(train_mask ^ test_mask)
-    assert set(fingerprints[train_mask]).isdisjoint(set(fingerprints[test_mask]))
-
-    train = df.loc[train_mask].copy()
-    test = df.loc[test_mask].copy()
-
+    y = df[TARGET].astype(int).to_numpy()
+    if not np.isfinite(df.to_numpy()).all() or not df[TARGET].isin([0, 1]).all():
+        raise ValueError("Nonfinite data or invalid labels.")
+    if original is None:
+        original = pd.read_csv(ORIGINAL_MANIFEST, dtype={"input_hash_uint64": "string"})
+    if len(original) != len(df) or original.record_id.duplicated().any():
+        raise ValueError("Source manifest row IDs must be unique and aligned.")
+    expected_ids = [f"small_{i:05d}" for i in range(1000)] + [f"large_{i:05d}" for i in range(19000)]
+    if original.record_id.tolist() != expected_ids or not np.array_equal(original[TARGET], y):
+        raise ValueError("Source manifest order/labels do not match the validated data.")
+    # Compare values, not pandas hashes across CSV parsers and library versions.
+    from src.clean_data import load_sources
+    raw, features, _, _ = load_sources(ROOT)
+    if list(raw.columns) != list(df.columns) or not np.allclose(raw.to_numpy(), df.to_numpy(), rtol=1e-14, atol=1e-14):
+        raise ValueError("Validated dataset values differ from original source rows.")
+    groups = group_ids(X)
+    parts, offset = choose_partitions(y, groups)
+    full_groups = pd.util.hash_pandas_object(X, index=False).to_numpy()
+    check_isolation(parts, full_groups, len(df))
+    assigned = np.empty(len(df), dtype=object)
+    for name, idx in parts.items():
+        assigned[idx] = name
+    manifest = pd.DataFrame({"row_index": np.arange(len(df)), "record_id": original.record_id,
+                             "source_extract": original.source_extract, TARGET: y, "split": assigned,
+                             "bus_group": groups.astype(str), "input_hash_uint64": full_groups.astype(str)})
     summary = {
-        "dataset_rows": int(len(df)),
-        "input_features": int(X.shape[1]),
-        "method": "train_test_split on unique complete feature-vector groups",
-        "test_size_of_groups": 0.20,
-        "random_state": SEED,
-        "stratify": TARGET,
-        "unique_input_groups": int(len(unique_groups)),
-        "train_rows": int(len(train)),
-        "test_rows": int(len(test)),
-        "train_positive": int(train[TARGET].sum()),
-        "test_positive": int(test[TARGET].sum()),
-        "train_positive_rate": float(train[TARGET].mean()),
-        "test_positive_rate": float(test[TARGET].mean()),
-        "identical_feature_groups_in_both": 0,
-        "caution": (
-            "Exact duplicates are separated; related simulations may still "
-            "be dependent and some features may describe post-event outcomes."
-        ),
-    }
+        "protocol_version": PROTOCOL_VERSION, "seed": SEED, "candidate_offset": offset,
+        "method": "group-disjoint approximately 70/15/15, balancing counts/labels only",
+        "group_definition": "identical complete 72 bus features; no claim of physical scenario independence",
+        "dataset_rows": len(df), "input_features": X.shape[1], "dataset_fingerprint": frame_fingerprint(df),
+        "partitions": {name: {"records": len(idx), "blackout_1": int(y[idx].sum()),
+                              "blackout_0": int(len(idx)-y[idx].sum()), "groups": len(set(groups[idx]))}
+                       for name, idx in parts.items()},
+        "leakage_check": {"train_validation_bus_group_overlap": 0, "train_test_bus_group_overlap": 0,
+                          "validation_test_bus_group_overlap": 0, "complete_input_overlap": 0},
+        "caveats": ["Retrospective internal benchmark: the dataset and earlier test scores were already examined.",
+                    "A new split does not create independent external validation or erase prior analyst exposure.",
+                    "The source paper documents pre-outage graph attributes; exact local flattening alignment remains unverified.",
+                    "Bus grouping does not establish independence of all physical simulation families."]}
     if save:
-        OUTPUT_DIR.mkdir(exist_ok=True, parents=True)
-        train.to_csv(OUTPUT_DIR / "train.csv", index=False, float_format="%.17g")
-        test.to_csv(OUTPUT_DIR / "test.csv", index=False, float_format="%.17g")
-        (OUTPUT_DIR / "train_test_summary.json").write_text(
-            json.dumps(summary, indent=2) + "\n", encoding="utf-8"
-        )
-        # Verify the exported, reloaded CSVs—not just the in-memory split.
-        train_check = pd.read_csv(OUTPUT_DIR / "train.csv")
-        test_check = pd.read_csv(OUTPUT_DIR / "test.csv")
-        if train_check.shape != train.shape or test_check.shape != test.shape:
-            raise ValueError("Exported CSV sizes differ from the original split.")
-        h_train = set(pd.util.hash_pandas_object(
-            train_check.drop(columns=TARGET), index=False
-        ))
-        h_test = set(pd.util.hash_pandas_object(
-            test_check.drop(columns=TARGET), index=False
-        ))
-        if h_train.intersection(h_test):
-            raise ValueError("Duplicate input vectors cross the exported CSVs!")
-    return train, test, summary
+        OUTPUT.mkdir(parents=True, exist_ok=True)
+        # Refuse silent replacement of a previously locked partition.
+        saved = OUTPUT / "all_records_manifest.csv"
+        if saved.exists():
+            previous = pd.read_csv(saved, dtype={"bus_group": "string", "input_hash_uint64": "string"})
+            if previous.record_id.tolist() != manifest.record_id.tolist() or previous.split.tolist() != manifest.split.tolist():
+                raise ValueError("Locked corrected manifest differs: use an explicitly versioned new protocol.")
+        manifest.to_csv(saved, index=False)
+        for name in parts:
+            manifest.loc[manifest.split == name].to_csv(OUTPUT / f"{name}_manifest.csv", index=False)
+        (OUTPUT / "split_summary.json").write_text(json.dumps(summary, indent=2)+"\n", encoding="utf-8")
+    return parts, summary
 
 
 if __name__ == "__main__":
-    _, _, report = make_splits()
-    print(json.dumps(report, indent=2))
+    _, result = make_splits()
+    print(json.dumps(result, indent=2))
