@@ -17,16 +17,18 @@ A binary classifier predicts whether a simulated scenario results in unmet elect
 
 The table shows the **assigned responsibilities from the team**, not a claim that every stored file has been independently verified as the named person's work. Preserve teammates' source notebooks and saved results.
 
-## Data: which version to use?
+## Current team handoff: train and test
 
-- **Modeling data:** `data/processed/validated_20000.csv.gz` (20,000 rows, 224 inputs + `blackout`), without dropping duplicate scenarios.
-- **Original extracts:** `data/Blackout_PowerGraph_1000.csv` and `data/raw/Blackout_PowerGraph_19000.zip`.
-- **Current team-requested 80/20 split:** `data/splits/team_stratified_80_20/`. Use the saved `all_records_manifest.csv` to select records by `row_index`.
-- **Earlier 70/15/15 group-aware split:** `data/splits/` at the top level, retained because historical baseline and evaluation notebooks still use it.
+Anais requested **two CSVs only**, with no repeated identical input records across the partitions and no separate validation dataset.
 
-The team's 80/20 split uses `train_test_split(test_size=0.20, random_state=42, stratify=y)`, then a bus-group-aware training/validation split. Its saved partitions are **12,728 train / 3,272 validation / 4,000 test**. Unlike the older group-aware protocol, **447 test records share identical complete inputs with records in the initial training pool**. Read [the split report](reports/team_split.md) before making generalization claims.
+- `data/processed/train.csv`: **16,018 records** (3,240 blackout cases)
+- `data/processed/test.csv`: **3,982 records** (792 blackout cases)
 
-**Important:** Saved metrics in `reports/evaluation/` and `reports/evaluation_anais/` were obtained under different protocols and must not be presented as one controlled comparison. The earlier Anais evaluation also used a different inner split (12,824/3,176/4,000), so rerun affected models before claiming the current manifest's test results.
+The method groups **identical complete feature vectors**, then applies a stratified 80/20 split *to the unique groups*, assigning all 20,000 original rows to train or test. Because groups differ in size, the row counts are approximately, not exactly, 80/20. The verified cross-partition duplicate-input overlap is **zero**.
+
+**Reproduce:** `python -m src.split_data`. The [data-audit notebook](notebooks/01_data_audit_executed.ipynb) shows the complete procedure and validation checks; [split report](reports/team_split.md) explains limitations. Model tuning and threshold selection must use cross-validation **within train.csv**; reserve test.csv for final evaluation.
+
+**Existing team experiments are historical.** Older group-aware 70/15/15 manifests remain under `data/splits/` because existing baseline/evaluation scripts depend on them. Existing saved scores from earlier train/validation/test protocols are **not scores on these new CSVs**. The team must rerun affected models before claiming final results. Original sources remain available in `data/Blackout_PowerGraph_1000.csv` and `data/raw/Blackout_PowerGraph_19000.zip`; the validated full dataset is `data/processed/validated_20000.csv.gz`.
 
 ## Repository guide
 
