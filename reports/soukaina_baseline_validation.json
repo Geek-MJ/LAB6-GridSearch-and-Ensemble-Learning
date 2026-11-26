@@ -1,0 +1,61 @@
+{
+  "scope": "Current Soukaina baseline components, full data and original baseline grids; validation metrics at threshold 0.5",
+  "split_sizes": {
+    "train": 13944,
+    "validation": 3001,
+    "test": 3055
+  },
+  "baselines": {
+    "Dummy_prior": {
+      "threshold": 0.5,
+      "accuracy": 0.7970676441186271,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "f2": 0.0,
+      "roc_auc": 0.5,
+      "average_precision": 0.20293235588137287,
+      "confusion_matrix": [
+        [
+          2392,
+          0
+        ],
+        [
+          609,
+          0
+        ]
+      ]
+    },
+    "Logistic_regression": {
+      "threshold": 0.5,
+      "accuracy": 0.9766744418527158,
+      "precision": 0.9514237855946399,
+      "recall": 0.9326765188834154,
+      "f1": 0.9419568822553898,
+      "f2": 0.9363666336960106,
+      "roc_auc": 0.9962065670461473,
+      "average_precision": 0.9864331845187063,
+      "confusion_matrix": [
+        [
+          2363,
+          29
+        ],
+        [
+          41,
+          568
+        ]
+      ]
+    }
+  },
+  "scaler_fitted_rows": 13944,
+  "scaler_train_mean_matches": true,
+  "checked_on": "2026-11-26",
+  "source_commit": "4eee2d17c3dcd5e155391ab31ee3226d1246585b",
+  "environment": {
+    "python": "3.12.4",
+    "pandas": "2.2.2",
+    "numpy": "1.26.4",
+    "scikit-learn": "1.4.2"
+  },
+  "note": "Assistant-run verification of the current baseline code; not evidence of personal execution by a student. No baseline test-set scores are reported."
+}

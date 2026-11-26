@@ -1,88 +1,48 @@
-# Evaluation Protocol, Threshold Selection, Final Test Evaluation, Error Analysis and Results Synthesis
+# Soukaina - Preprocessing and Baseline Results
 
-## 1. Evaluation Protocol
+Checked on 26 November 2026. This note covers preprocessing, DummyClassifier, Logistic Regression and initial evaluation.
 
-The GridGuard dataset contains 20,000 validated records and 224 input features. The target variable is `blackout`, which indicates whether a blackout occurs.
+## Setup
 
-The dataset was divided into three subsets:
-- Training: 12,824 records.
-- Validation: 3,176 records.
-- Testing: 4,000 records.
+- Data: 20,000 simulated PowerGraph IEEE-24 records, 224 numerical inputs and target `blackout`.
+- Current evaluator split: 13,944 training, 3,001 validation and 3,055 test records.
+- Identical 72-variable bus configurations stay in one partition.
+- These partitions differ from the team's existing 16,018/3,982 train/test CSVs. Scores from the two protocols should not be compared directly.
 
-The initial split used stratified sampling to preserve the class distribution. The validation split used GroupShuffleSplit, while model hyperparameter tuning used 5-fold StratifiedGroupKFold cross-validation.
+## Baselines
 
-A Random Forest classifier was tuned using recall as the optimization metric. The grid search evaluated 1,152 parameter combinations, resulting in 5,760 model fits.
+- DummyClassifier uses the training class proportions (`strategy="prior"`).
+- Logistic Regression uses `StandardScaler` inside its pipeline. Scaling is fitted only on training data, including within each CV fold.
+- Logistic Regression tests `C = 0.1, 1, 10` with five grouped CV folds on training data. Selection uses average precision.
 
-The selected hyperparameters were:
-- `class_weight`: balanced
-- `max_depth`: 11
-- `max_features`: 225
-- `min_samples_leaf`: 2
-- `min_samples_split`: 6
-- `n_estimators`: 6
+## Validation results
 
-The best mean cross-validation recall was 97.23%.
+Both baselines were rerun on the current data. The table uses a fixed threshold of 0.50; these are validation scores, not final test scores.
 
-## 2. Threshold Selection on Validation Data
+| Model | Accuracy | Precision | Recall | F1 | ROC-AUC | Average precision |
+|---|---:|---:|---:|---:|---:|---:|
+| Dummy | 0.7971 | 0.0000 | 0.0000 | 0.0000 | 0.5000 | 0.2029 |
+| Logistic Regression | 0.9767 | 0.9514 | 0.9327 | 0.9420 | 0.9962 | 0.9864 |
 
-The decision threshold determines the probability above which a prediction is classified as a blackout.
+Confusion matrices use rows = actual class and columns = predicted class, in order `[0, 1]`.
 
-Several thresholds between 0.05 and 0.50 were evaluated using validation data.
+| Model | True negatives | False positives | False negatives | True positives |
+|---|---:|---:|---:|---:|
+| Dummy | 2392 | 0 | 609 | 0 |
+| Logistic Regression | 2363 | 29 | 41 | 568 |
 
-A lower threshold increases recall but also generates more false alarms. For example, at threshold 0.15, recall reached 99.09%, but there were 298 false positives and 6 false negatives.
+At 0.50, Dummy predicts class 0 for every record. Its 79.71% accuracy comes from the majority class; it detects no positive cases. Logistic Regression detects 568 of the 609 validation positives, with 29 false alerts and 41 missed positives.
 
-At threshold 0.50, recall was 97.43%, precision was 75.68%, and the model produced 207 false positives and 17 false negatives.
+## Evidence and limits
 
-Following the team's decision and Anaïs's analysis, the threshold was fixed at 0.50. This provided a better balance between detecting blackouts and limiting unnecessary alerts.
+The verification completed both baseline searches, predictions, metric calculations and confusion-matrix generation. The final logistic scaler was checked against the 13,944 training rows.
 
-## 3. Final Test Evaluation
+- Code: [`evaluate.py`](../src/evaluate.py), [`split_data.py`](../src/split_data.py).
+- Recorded results and environment: [`soukaina_baseline_validation.json`](soukaina_baseline_validation.json).
+- The verification used scikit-learn 1.4.2 and pandas 2.2.2; these differ from the pinned requirements, so this does not certify execution with those exact pinned versions.
+- This is an internal retrospective check on simulated data, not external or real-grid validation.
+- The wider evaluator compares five models. Its final selected-model results are separate from these baseline validation results.
 
-After selecting the Random Forest model and fixing the decision threshold at 0.50, the final evaluation was performed on the reserved test set.
+## Earlier experiment
 
-The results were:
-
-| Metric | Test result |
-|---|---:|
-| Accuracy | 93.45% |
-| Precision | 76.98% |
-| Recall | 96.28% |
-| F1-score | 85.56% |
-| ROC-AUC | 98.21% |
-| Average Precision | 94.96% |
-
-The confusion matrix was:
-
-| | Predicted no blackout | Predicted blackout |
-|---|---:|---:|
-| Actual no blackout | 2,962 | 232 |
-| Actual blackout | 30 | 776 |
-
-The model correctly identified 776 out of 806 actual blackout cases and missed 30. These results show strong blackout detection performance on the reserved test partition.
-
-## 4. Error Analysis
-
-The model made 262 incorrect predictions:
-- 232 false positives.
-- 30 false negatives.
-
-False negatives are particularly important because they represent actual blackouts that the model failed to detect. The relatively low number of false negatives is consistent with the model's high recall.
-
-The error rates by source were:
-- `1000_csv`: 12 errors out of 190 records (6.32%).
-- `19000_zip`: 250 errors out of 3,810 records (6.56%).
-
-The error rates are relatively similar across the two sources.
-
-Feature importance analysis showed that `line_5_reactive_power_flow` was the most influential feature, with an importance of approximately 38.15%. It was followed by `line_10_rating` at 7.84% and `line_10_reactive_power_flow` at 5.52%.
-
-These values indicate which features the Random Forest relied on most when making predictions. They do not establish a causal relationship with blackout events.
-
-## 5. Results Synthesis
-
-The final Random Forest achieved 93.45% accuracy and 96.28% recall on the test set. Its high recall indicates that it detected most blackout cases, which is important because missed blackouts can have serious consequences.
-
-The threshold of 0.50 was retained to reduce false alerts compared with lower thresholds. Although the validation comparison showed stronger overall metrics for Logistic Regression, the team retained the Random Forest following the selected approach based on Anaïs's work.
-
-Overall, the results demonstrate that the model can identify simulated blackout scenarios with strong performance. However, the dataset contains simulated scenarios, so these results do not prove real-world grid performance.
-
-One limitation is that the initial train/test split was stratified but not group-aware. Some bus configurations therefore appeared in both the training pool and test set. The results should consequently not be interpreted as a definitive measure of generalization to completely unseen bus configurations.
+The previous version of this note described a Random Forest experiment using a different split. Those historical outputs remain in [`evaluation_anais/`](evaluation_anais/). They are not results of the current baseline check.
