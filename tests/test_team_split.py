@@ -1,26 +1,23 @@
-"""The canonical protocol must exclude shared configurations from every split."""
-import numpy as np
-import pytest
-from src.split_data import make_splits, choose_partitions, check_isolation
+"""Checks for the two-file, group-stratified 80/20 split."""
+import pandas as pd
+from src.split_data import make_splits
 
+def test_counts_class_balance_and_no_shared_inputs():
+    train, test, report = make_splits(save=False)
+    assert len(train) == 16018
+    assert len(test) == 3982
+    assert len(train) + len(test) == 20000
+    assert len(train.columns) == len(test.columns) == 225
+    assert int(train.blackout.sum()) == 3240
+    assert int(test.blackout.sum()) == 792
+    assert abs(train.blackout.mean() - test.blackout.mean()) < 0.01
+    h1 = set(pd.util.hash_pandas_object(train.drop(columns="blackout"), index=False))
+    h2 = set(pd.util.hash_pandas_object(test.drop(columns="blackout"), index=False))
+    assert h1.isdisjoint(h2)
+    assert report["identical_feature_groups_in_both"] == 0
 
-def test_real_data_split_is_disjoint_and_complete():
-    parts, summary = make_splits(save=False)
-    assert sorted(np.concatenate(list(parts.values())).tolist()) == list(range(20000))
-    assert all(v == 0 for v in summary["leakage_check"].values())
-    assert all(summary["partitions"][name]["blackout_1"] > 0 for name in parts)
-
-
-def test_grouped_split_is_deterministic_without_fitting_any_model():
-    groups = np.repeat(np.arange(300), 2)
-    y = np.repeat(np.arange(300) % 2, 2)
-    a, _ = choose_partitions(y, groups)
-    b, _ = choose_partitions(y, groups)
-    for name in a:
-        assert np.array_equal(a[name], b[name])
-    check_isolation(a, groups, len(y))
-
-
-def test_overlap_is_rejected():
-    with pytest.raises(ValueError, match="Group overlap"):
-        check_isolation({"train": np.array([0, 1]), "test": np.array([2, 3])}, np.array([7, 8, 7, 9]), 4)
+def test_is_deterministic():
+    a_train, a_test, _ = make_splits(save=False)
+    b_train, b_test, _ = make_splits(save=False)
+    pd.testing.assert_frame_equal(a_train, b_train)
+    pd.testing.assert_frame_equal(a_test, b_test)
