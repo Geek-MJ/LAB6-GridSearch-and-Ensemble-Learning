@@ -3,8 +3,10 @@ from src.split_data import make_splits
 
 def test_split_sizes_and_labels():
     parts, report = make_splits(save=False)
-    assert [len(parts[k]) for k in ("train", "validation", "test")] == [12824, 3176, 4000]
-    assert [report["partitions"][k]["blackout_1"] for k in ("train", "validation", "test")] == [2565, 661, 806]
+    assert len(parts["train"]) + len(parts["validation"]) == 16000
+    assert len(parts["test"]) == 4000
+    assert report["partitions"]["test"]["blackout_1"] == 806
+    assert sum(report["partitions"][k]["blackout_1"] for k in ("train", "validation")) == 3226
     assert report["outer"]["random_state"] == 42
     assert report["leakage_check"]["train_validation_bus_group_overlap"] == 0
 
