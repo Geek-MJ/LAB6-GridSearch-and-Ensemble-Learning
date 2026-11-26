@@ -36,13 +36,20 @@ The earlier AI-provided workflow ran the Random Forest GridSearch before creatin
 Reviewing the notebook’s execution order revealed that X_val was extracted from X_train after the GridSearch. This introduced data leakage and could make validation results overly optimistic.
 **Correction and validation:**  
 The dataset split was moved before all training and hyperparameter searches. Scenarios with identical bus states were kept in the same partition, and feature selection and scaling were placed inside the cross-validation pipelines. Reduced-grid checks on a 1,200-row sample confirmed that selectors used only their fold’s training rows and that the corrected partitions shared no bus-state groups.
+
 ## 4. Yutong CAO — Evaluation Error
 
-**Original AI-output flaw:**  
-[Add the AI error identified in this part of the project.]
+**Original AI-output flaw:**
 
-**How it was detected and why it matters:**  
-[Explain how the error was found and why it matters.]
+During the out-of-fold prediction workflow, the AI assistant incorrectly assumed that `oof_predictions` was a dictionary indexed by model name. In the notebook at that point, the variable was actually a NumPy array with shape `(16018,)`. The suggested instructions therefore did not match the notebook's real variable structure.
 
-**Correction and validation:**  
-[Describe the correction and link to the code, output or test used to check it.]
+**How it was detected and why it matters:**
+
+I checked the actual variable type and shape in the notebook and found that `oof_predictions` was a NumPy array rather than a dictionary. Following the incorrect assumption would have caused errors when accessing predictions by model name and could have disrupted the comparison of the three Decision Tree models. This was caught before the final evaluation results were reported.
+
+**Correction and validation:**
+
+The out-of-fold workflow was corrected to store predictions and probabilities in separate dictionaries, with one array per model. I reran the five-fold grouped cross-validation and checked that each model had 16,018 out-of-fold predictions and probabilities. I also verified that identical complete feature-vector groups did not overlap between the training and validation portions of any fold. The corrected results were then used for model comparison, threshold analysis and the final evaluation report.
+
+**Files checked:** `notebooks/step4_baseline_20000_team_split.ipynb`, `reports/baseline_evaluation_20000.md`, `reports/decision_tree_final_results.csv`, `reports/decision_tree_threshold_analysis.csv`.
+
