@@ -38,21 +38,3 @@ tests/        Data-quality and split checks
 figures/      EDA and modeling figures
 reports/      Data-audit evidence and existing model evaluation reports
 ```
-
-## Reproduce Mahij's module
-
-Python 3.12 recommended. From the repository root:
-
-```bash
-python -m pip install -r requirements.txt
-python -m pytest -q
-python -m src.split_data
-```
-
-This checks the existing data and regenerates current split manifests. For full audit regeneration, run `python -m src.audit`, followed by `python -m src.clean_data`. Those commands also regenerate the older audit protocol; they do not train models.
-
-## Submission status
-
-**Not yet submission-ready.** LAB 5 requires a final PDF report, an agreed experimental methodology, and the `ai_governance/CONTRIBUTIONS.md`, `PROMPT_LOG.md` and `AI_AUDIT.md` files in the Moodle ZIP. Each student must verify and document their genuine contributions and AI interactions. Do not invent these records.
-
-The repository preserves the team's experiments without treating historical and current splits as equivalent.
