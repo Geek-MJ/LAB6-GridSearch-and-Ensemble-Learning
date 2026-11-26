@@ -1,72 +1,58 @@
-# GridGuard — Power Grid Supply Disruption Prediction
+# GridGuard
 
-Machine learning course project using PowerGraph / IEEE-24 simulated electrical-grid scenarios. The goal is to predict unmet electricity demand (`blackout=1`); `0` means all demand is supplied.
+**Predicting electricity supply disruptions in simulated power grids**
 
-## Start here
+ESILV Machine Learning group project · [PowerGraph (IEEE-24) dataset](https://figshare.com/articles/dataset/PowerGraph/22820534)
 
-| Stage | What to read |
-| --- | --- |
-| 1. Data audit | [Audit report](reports/data_audit.md) · [Executed notebook](notebooks/01_data_audit_executed.ipynb) |
-| 2. Data cleaning | [Cleaning report](reports/cleaning.md) · [Dataset guide](data/README.md) |
-| 3. Baseline | [Baseline notebook](notebooks/step4_baseline.ipynb) · [Baseline report](reports/baseline_evaluation.md) |
-| 4. Advanced experiments | [Task 3 notebook](notebooks/task3.ipynb) |
-| 5. Evaluation | [Report index](reports/README.md) · [Figures](figures/README.md) |
+A binary classifier predicts whether a simulated scenario results in unmet electricity demand (`blackout = 1`). The source consists of **20,000 scenarios**, **224 numerical input features**, and a binary target. Class 1 occurs in **4,032** scenarios (20.16%).
 
-## Dataset
+## Who does what?
 
-[PowerGraph](https://figshare.com/articles/dataset/PowerGraph/22820534), IEEE-24: 20,000 records, 224 numerical input features, 4,032 positive labels (20.16%), no missing or infinite values, 18,579 unique input patterns. The primary dataset retains all records; the optional unique-input dataset is separate.
+| Owner | Assigned responsibilities | Work in this repository |
+| --- | --- | --- |
+| **Mahij Khantigiri GOSAI** | Dataset provenance; quality, duplicate and leakage audit; EDA; train/validation/test splits | [Executed data-audit notebook](notebooks/01_data_audit_executed.ipynb), [audit](src/audit.py), [cleaning](src/clean_data.py), [team split](src/split_data.py), [audit report](reports/data_audit.md), [split report](reports/team_split.md) |
+| **Soukaina BAHAMI** | Preprocessing pipeline; DummyClassifier and Logistic Regression baselines; initial metrics and confusion matrices | [Existing evaluation synthesis](reports/EVALUATION_RESULTS_SOUKAINA.md); other work requires owner confirmation |
+| **Anais KAMTCHOUANG NONO** | Two advanced classifiers; hyperparameter tuning; comparison against baselines; feature importance | [Advanced experiments notebook](notebooks/task3.ipynb) and [evaluation work](reports/evaluation_anais/evaluation_report.md); confirm exact ownership with the team |
+| **Yutong CAO** | Evaluation protocol; validation threshold selection; final test evaluation; error analysis; results synthesis | [Decision Tree notebooks](notebooks/step4_baseline_20000.ipynb) and [report](reports/baseline_evaluation_20000.md); confirm final evaluation responsibilities with the team |
 
-## Saved evaluation results
+The table shows the **assigned responsibilities from the team**, not a claim that every stored file has been independently verified as the named person's work. Preserve teammates' source notebooks and saved results.
 
-Two full-dataset experiments are documented separately because their splits and selection protocols differ.
+## Data: which version to use?
 
-| Protocol | Manifest-based evaluation | Anaïs evaluation |
-| --- | ---: | ---: |
-| Train / validation / test | 13,993 / 3,010 / 2,997 | 12,824 / 3,176 / 4,000 |
-| Selection metric | Average precision | Recall |
-| Random Forest threshold | 0.277179 (validation F2) | 0.50 |
-| Test accuracy | 96.56% | 93.45% |
-| Test recall | 95.37% | 96.28% |
-| Test ROC-AUC | 99.33% | 98.21% |
-| Report | [Results](reports/evaluation/evaluation_report.md) | [Results](reports/evaluation_anais/evaluation_report.md) |
+- **Modeling data:** `data/processed/validated_20000.csv.gz` (20,000 rows, 224 inputs + `blackout`), without dropping duplicate scenarios.
+- **Original extracts:** `data/Blackout_PowerGraph_1000.csv` and `data/raw/Blackout_PowerGraph_19000.zip`.
+- **Current team-requested 80/20 split:** `data/splits/team_stratified_80_20/`. Use the saved `all_records_manifest.csv` to select records by `row_index`.
+- **Earlier 70/15/15 group-aware split:** `data/splits/` at the top level, retained because historical baseline and evaluation notebooks still use it.
 
-These are saved results, not new experiments or a head-to-head comparison. The earlier 1,000-row baseline is a separate experiment. Feature importance is not feature selection.
+The team's 80/20 split uses `train_test_split(test_size=0.20, random_state=42, stratify=y)`, then a bus-group-aware training/validation split. Its saved partitions are **12,728 train / 3,272 validation / 4,000 test**. Unlike the older group-aware protocol, **447 test records share identical complete inputs with records in the initial training pool**. Read [the split report](reports/team_split.md) before making generalization claims.
 
-## Repository map
+**Important:** Saved metrics in `reports/evaluation/` and `reports/evaluation_anais/` were obtained under different protocols and must not be presented as one controlled comparison. The earlier Anais evaluation also used a different inner split (12,824/3,176/4,000), so rerun affected models before claiming the current manifest's test results.
+
+## Repository guide
 
 ```text
-data/          Original extracts, processed datasets, split manifests
-src/           Audit, cleaning and current evaluation implementation
-notebooks/     Executed audit, baseline and advanced experiments
-reports/       Audit, cleaning, baseline and evaluation results
-figures/       Exploratory plots and separate evaluation plots
-tests/         Data validation and split integrity tests
-.github/       CI workflow
-docs/          Preserved previous project overview
+data/         Original files, one validated modeling dataset and historical/current split manifests
+notebooks/    Data audit, baseline and advanced notebooks (saved team work preserved)
+src/          Reproducible audit, cleaning, splitting and evaluation scripts
+tests/        Data-quality and split checks
+figures/      EDA and modeling figures
+reports/      Data-audit evidence and existing model evaluation reports
 ```
 
-## Reproduce
+## Reproduce Mahij's module
 
 Python 3.12 recommended. From the repository root:
 
 ```bash
-git clone --branch feature/step4-baseline https://github.com/Geek-MJ/Lab-5-Machine-Learning-Project-.git
-cd Lab-5-Machine-Learning-Project-
 python -m pip install -r requirements.txt
 python -m pytest -q
-python -m src.audit
-python -m src.clean_data
-python -m src.evaluate
+python -m src.split_data
 ```
 
-The last three commands regenerate outputs. The current evaluation script reproduces the Anaïs protocol, not the earlier manifest-based protocol. See [source guide](src/README.md) and [test guide](tests/README.md).
+This checks the existing data and regenerates current split manifests. For full audit regeneration, run `python -m src.audit`, followed by `python -m src.clean_data`. Those commands also regenerate the older audit protocol; they do not train models.
 
-## Limitations
+## Submission status
 
-Simulated scenarios may not generalize to real networks. Exact-input grouping does not guarantee independent simulation families. The Anaïs outer test split is not group-aware; overlap is reported. Feature timing relative to the outcome requires verification. Fit preprocessing and feature selection on training data only.
+**Not yet submission-ready.** LAB 5 requires a final PDF report, an agreed experimental methodology, and the `ai_governance/CONTRIBUTIONS.md`, `PROMPT_LOG.md` and `AI_AUDIT.md` files in the Moodle ZIP. Each student must verify and document their genuine contributions and AI interactions. Do not invent these records.
 
-## Team
-
-Mahij Khantigiri GOSAI · Anais KAMTCHOUANG NONO · Soukaina BAHAMI · Yutong CAO
-
-[Previous README (preserved verbatim)](docs/previous_readme.md)
+The repository preserves the team's experiments without treating historical and current splits as equivalent.

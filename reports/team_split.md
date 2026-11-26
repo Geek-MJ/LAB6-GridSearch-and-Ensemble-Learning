@@ -1,26 +1,28 @@
-# Team dataset split
+# GridGuard — team-requested splitting
 
-**Dataset:** PowerGraph IEEE-24, 20,000 simulated records with 224 numeric features and target `blackout`.
+**Owner:** Mahij Khantigiri GOSAI · **Input:** 20,000-row validated dataset
 
-This implements the team's requested `train_test_split(..., test_size=0.20, random_state=42, stratify=y)`. The 16,000-row training pool is then divided into train and validation subsets using `GroupShuffleSplit(test_size=0.20, random_state=42)` on 72 bus variables, matching the existing `src/evaluate.py` protocol.
+The team requested an **80/20 stratified train/test split**. Reproduce with `python -m src.split_data`. It uses:
 
-| Partition | Records | `blackout=0` | `blackout=1` |
-|---|---:|---:|---:|
-| Train | Generated from the current source | See split summary | See split summary |
-| Validation | Generated from the current source | See split summary | See split summary |
+```python
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.20, random_state=42, stratify=y
+)
+```
+
+A `GroupShuffleSplit(test_size=0.20, random_state=42)` using the 72 `bus_` features then produces the training and validation subsets from the initial 16,000-row training pool.
+
+| Partition | Rows | Normal (0) | Blackout (1) |
+| --- | ---: | ---: | ---: |
+| Train | 12,728 | 10,130 | 2,598 |
+| Validation | 3,272 | 2,644 | 628 |
 | Test | 4,000 | 3,194 | 806 |
 | **Total** | **20,000** | **15,968** | **4,032** |
 
-The initial 80/20 split itself preserves the target-class distribution. The group-aware validation split does not enforce exact stratification. On current data, a rerun produced 12,728 train and 3,272 validation records, not the 12,824/3,176 reported in the older saved evaluation. Do not mix the older evaluation metrics with these newly generated partitions.
+The saved split IDs and full summary are in `data/splits/team_stratified_80_20/`. The `all_records_manifest.csv` includes the `row_index` needed to load each partition consistently.
 
-## Files
+**Limitations:** The initial stratified outer split is not group-disjoint. **447 test rows** have identical complete feature vectors within the 16,000-row training pool; **457 bus-configuration groups** occur in both. The training and validation partitions share no bus groups. These facts must be disclosed in the final report.
 
-The `data/splits/team_stratified_80_20/` directory contains the overall row-level manifest and three subset manifests, plus `split_summary.json`. Every manifest includes the original row index and record ID. The input files are unchanged.
+**Historical protocol:** The older audit split is a separate **13,993 train / 3,010 validation / 2,997 test** grouped experiment. It remains in the repository because existing team notebooks refer to it. Do not combine historical metrics with current split results.
 
-Run `python -m src.split_data` from the repository root to regenerate the same split. The saved manifests are authoritative for this protocol, and downstream models must use their row IDs.
-
-## Limitation
-
-This follows the requested **ordinary** stratified outer split. It is not a group-aware test split: **447 test rows** have identical full input vectors in the 16,000-row training pool, and **457 distinct bus-pattern groups** occur in both. The train and validation subsets are bus-group-disjoint. The overlap should be reported when interpreting test performance.
-
-This protocol is different from the earlier 13,993/3,010/2,997 group-aware manifest. Keep that previous experiment separate; do not combine metrics across the two.
+**Results warning:** A saved older Anais experiment reports 12,824/3,176/4,000. Those are *not* this manifest's partitions. The group must refit/re-evaluate models on the agreed protocol before its final comparison.
