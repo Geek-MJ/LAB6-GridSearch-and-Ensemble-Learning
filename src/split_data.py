@@ -71,11 +71,27 @@ def make_splits(save=True):
     )
     if len(original) != len(df) or original["record_id"].duplicated().any():
         raise ValueError("Original record manifest is missing rows or has duplicate IDs.")
-    full_hash = pd.util.hash_pandas_object(X, index=False).astype(str)
-    if not (original["input_hash_uint64"].to_numpy() == full_hash.to_numpy()).all():
-        raise ValueError("Input features do not match the original audit.")
+    # The validated CSV is a floating-point text roundtrip. Exact bitwise
+    # hashes may differ from the raw CSV even if the numerical inputs match.
+    from src.audit import read_inputs
+    raw_data, raw_features, _, _ = read_inputs()
+    if raw_features != X.columns.tolist() or len(raw_data) != len(X):
+        raise ValueError("Processed input schema does not match the raw data.")
+    if not np.allclose(
+        raw_data[raw_features].to_numpy(),
+        X.to_numpy(),
+        rtol=1e-12,
+        atol=1e-12,
+    ):
+        raise ValueError("Processed numeric features differ from the original inputs.")
+    raw_hash = pd.util.hash_pandas_object(
+        raw_data[raw_features], index=False
+    ).astype(str)
+    if not (original["input_hash_uint64"].to_numpy() == raw_hash.to_numpy()).all():
+        raise ValueError("The original audit manifest does not match source features.")
     if not original[TARGET].reset_index(drop=True).equals(y.reset_index(drop=True)):
         raise ValueError("Labels do not match the original audit.")
+    full_hash = pd.util.hash_pandas_object(X, index=False).astype(str)
 
     assigned = np.empty(len(df), dtype=object)
     for name, idx in partitions.items():
