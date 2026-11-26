@@ -1,9 +1,9 @@
 """Validate the PowerGraph extracts and export clean, reproducible datasets.
 
 Run from the repository root: python -m src.clean_data
-The complete version preserves repeated simulated records; the optional
-unique-input version removes identical feature vectors without changing splits.
-Scaling and feature selection belong inside the model training pipeline.
+The validated export preserves every record and feature. Duplicates are
+reported rather than silently removed. Scaling and feature selection
+belong inside the model training pipeline.
 """
 from __future__ import annotations
 
@@ -90,12 +90,8 @@ def clean(root: Path = ROOT) -> dict:
     data, features, small_file, archive_file = load_sources(root)
     manifest = check_manifest(root, data, features)
 
-    # Keep the full valid dataset; provide deduplication as an optional separate view.
+    # Count repeated inputs for the audit. Retain all original records.
     unique_mask = ~data.duplicated(subset=features, keep="first")
-    unique = data.loc[unique_mask].copy()
-    unique_manifest = manifest.loc[unique_mask].copy()
-    group_sizes = manifest.groupby("input_hash_uint64")["record_id"].transform("size")
-    unique_manifest["identical_input_count"] = group_sizes.loc[unique_mask].astype(int).to_numpy()
 
     # Identical columns are documented, not silently removed (feature selection comes later).
     first_for_hash = {}
@@ -108,7 +104,7 @@ def clean(root: Path = ROOT) -> dict:
             first_for_hash[key] = name
 
     counts = data[TARGET].value_counts().sort_index()
-    new_counts = unique[TARGET].value_counts().sort_index()
+    unique_counts = data.loc[unique_mask, TARGET].value_counts().sort_index()
     summary = {
         "source": "PowerGraph IEEE-24 simulated scenarios",
         "original_rows": len(data),
@@ -120,17 +116,14 @@ def clean(root: Path = ROOT) -> dict:
         "exact_duplicate_feature_rows": int((~unique_mask).sum()),
         "conflicting_duplicate_labels": 0,
         "identical_columns": equal_columns,
-        "unique_rows": len(unique),
-        "unique_target_counts": {str(k): int(v) for k, v in new_counts.items()},
-        "unique_target_rate": float(unique[TARGET].mean()),
-        "unique_split_rows": {part: int((unique_manifest["split"] == part).sum()) for part in SPLITS},
+        "unique_input_patterns": int(unique_mask.sum()),
+        "unique_target_counts": {str(k): int(v) for k, v in unique_counts.items()},
         "original_split_rows": {part: int((manifest["split"] == part).sum()) for part in SPLITS},
         "raw_file_sha256": {small_file.name: sha256(small_file), archive_file.name: sha256(archive_file)},
         "notes": [
             "No imputation, outlier clipping, scaling, or feature selection was performed.",
-            "The complete validated version retains all legitimate repeated simulation records.",
-            "The unique-input version retains the first record in each identical-feature group.",
-            "Existing group-disjoint partition assignments are preserved.",
+            "The validated export retains all records, including repeated simulation inputs.",
+            "Existing audit split assignments are preserved and checked.",
             "The 224 input columns are retained for training-only feature selection.",
             "Source documentation does not establish pre-outcome timing for all inputs."
         ]
@@ -139,11 +132,8 @@ def clean(root: Path = ROOT) -> dict:
     processed.mkdir(parents=True, exist_ok=True)
     gzip_options = {"method": "gzip", "compresslevel": 6, "mtime": 0}
     full_path = processed / "validated_20000.csv.gz"
-    unique_path = processed / "unique_18579.csv.gz"
     data.to_csv(full_path, index=False, float_format="%.17g", compression=gzip_options)
-    unique.to_csv(unique_path, index=False, float_format="%.17g", compression=gzip_options)
-    unique_manifest.to_csv(processed / "unique_records_manifest.csv", index=False)
-    summary["processed_file_sha256"] = {full_path.name: sha256(full_path), unique_path.name: sha256(unique_path)}
+    summary["processed_file_sha256"] = {full_path.name: sha256(full_path)}
     (processed / "cleaning_summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     return summary
 
