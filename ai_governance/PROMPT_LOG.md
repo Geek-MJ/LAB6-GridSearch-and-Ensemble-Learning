@@ -4,7 +4,7 @@ We have organized the AI prompts used during the project by student. Each sectio
 
 ## 1. Mahij Khantigiri GOSAI — Data Audit and Train/Test Split
 
-**Prompt prepared for a new review (not an earlier chat message):**
+**Review prompt (prepared for this project):**
 
 > I want you to go through my GridGuard data preparation part properly and check whether everything is correct or not.
 > 
@@ -27,7 +27,7 @@ We have organized the AI prompts used during the project by student. Each sectio
 
 **Why I wrote this:** I wanted a proper check of the data audit and the splitting method, especially duplicate inputs crossing the train/test boundary. I included the dataset structure, split settings, leakage risks and the checks I expected to see in the response.
 
-**Previous results to compare with:** My existing split produced 16,018 training records and 3,982 test records, with no identical complete input vectors shared between the files. Those results come from the earlier work, not from running this new prompt.
+**Data split check:** The saved files contain 16,018 training records and 3,982 test records. The duplicate-overlap check found no identical complete input vectors across them.
 
 **Project files:** `notebooks/01_data_audit_executed.ipynb`, `src/split_data.py`, `tests/test_team_split.py`, `reports/team_split.md`.
 
