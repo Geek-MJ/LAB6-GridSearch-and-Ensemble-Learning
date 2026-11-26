@@ -18,6 +18,8 @@ The following prompts cover the main stages of my data-preparation module. They 
 >
 > I want to keep the original dataset unchanged unless cleaning is actually necessary. Please explain the checks, generate reproducible Python code and summarize the findings for my report. Don't assume the data is correct without verifying it.
 
+**AI response:** I recommended validating both extracts before combining them and checking labels separately from input features. The saved audit confirms **20,000 rows, 224 numerical predictors**, a target distribution of **15,968 zeros / 4,032 ones**, **no missing or non-finite values**, **1,421 repeated input vectors** and **no conflicting labels for identical inputs**. I advised retaining repeated observations and documenting six columns that exactly match others rather than removing them without justification. See `src/clean_data.py` and `data/processed/cleaning_summary.json`.
+
 ### Prompt 2 — Exploratory analysis and feature investigation
 
 > Now that the dataset quality checks are done, I want to prepare the EDA for our GridGuard project.
@@ -31,6 +33,8 @@ The following prompts cover the main stages of my data-preparation module. They 
 > Also check whether some features are repeated, highly correlated or potentially problematic for ML models.
 >
 > Keep the analysis reproducible in Jupyter Notebook, explain the important findings and mention any limitations. The EDA should not be used to select features based on the test data, since that could introduce leakage.
+
+**AI response:** I suggested focusing the EDA on blackout balance, feature families, repeated simulation patterns, numerical differences between the two classes and feature correlations. Those topics are reflected in the saved figures and `notebooks/01_data_audit_executed.ipynb`. I also recommended treating correlation as descriptive, not proof of causation, and keeping any model-driven feature selection within training folds.
 
 ### Prompt 3 — Data splitting and leakage prevention
 
@@ -48,6 +52,8 @@ The following prompts cover the main stages of my data-preparation module. They 
 >
 > Please include the actual split sizes, class distribution and verification checks in the notebook.
 
+**AI response:** I explained why ordinary row-wise stratification can place identical inputs in both partitions. The earlier overlap check found **447 test records** with complete input vectors also present in training. The saved revised two-file split groups identical **224-feature** inputs, retains every record and reports **16,018 train / 3,982 test**, with **zero exact complete-input overlap**. These are results of the saved two-file workflow, not the current three-way script. See `reports/team_split.md` and `ai_governance/AI_AUDIT.md`.
+
 ### Prompt 4 — Final module verification and reproducibility
 
 > I have completed my data preparation module for GridGuard and want to verify everything before sharing it with the other team members.
@@ -64,13 +70,7 @@ The following prompts cover the main stages of my data-preparation module. They 
 >
 > Keep the project files organized, use relative paths and make sure the other members can reproduce my work without changing their existing notebooks or results.
 
-### Review findings and files
-
-The saved dataset audit reports **20,000 records**, **224 numerical predictors**, **15,968 negative** and **4,032 positive** labels, **zero missing or non-finite values**, **18,579 unique complete input vectors**, **1,421 repeated vectors**, and **zero conflicting labels for identical inputs**.
-
-The saved two-file exports contain **16,018 training** and **3,982 testing** records, with no identical complete input vectors crossing those files. However, the current `src/split_data.py` has since changed to a three-way protocol (approximately 70/15/15, seed 2026) based on the 72 bus variables. This differs from the older two-file method described in `reports/team_split.md`. The current three-way script was inspected but not executed during this review. The group needs one agreed protocol before final model comparisons.
-
-**Files reviewed:** `src/audit.py`, `src/clean_data.py`, `src/split_data.py`, `tests/test_team_split.py`, `data/processed/cleaning_summary.json`, `notebooks/01_data_audit_executed.ipynb` and `reports/team_split.md`.
+**AI response:** I compared the saved audit and split reports with the current source and tests. The main inconsistency is that `src/split_data.py` now specifies an approximately **70/15/15** split using **72 bus features** and seed **2026**, whereas `reports/team_split.md` still describes an **80/20** split grouped by all 224 inputs. I recommended selecting one final protocol and rerunning the matching checks before reporting comparable model results. The source also does not fully establish feature timing or independence between related simulations. The current three-way script was reviewed, not executed in this check.
 
 ## 2. Soukaina BAHAMI — Preprocessing and Baseline Models
 
