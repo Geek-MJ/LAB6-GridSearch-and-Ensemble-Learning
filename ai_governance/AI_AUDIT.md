@@ -48,7 +48,3 @@ The project requires **at least four concrete problems detected in AI-generated 
 
 **Correction and validation:**  
 [Describe the actual fix and cite the source file, test or result that demonstrates it.]
-
-## Submission Check
-
-Before submission, confirm at least **four real AI-output flaws and corrections**, with **one from every student**. Each entry must identify a verifiable original problem and completed correction. Hypothetical risks and unresolved issues are not substitutes for corrected mistakes.
