@@ -12,7 +12,7 @@ A binary classifier predicts whether a simulated scenario results in unmet elect
 | --- | --- | --- |
 | **Mahij Khantigiri GOSAI** | Dataset provenance; quality and leakage audit; exploratory analysis; train/test splitting | [Executed data-audit notebook](notebooks/01_data_audit_executed.ipynb), [audit](src/audit.py), [cleaning](src/clean_data.py), [team split](src/team_split.py), [audit report](reports/data_audit.md), [split report](reports/team_split.md) |
 | **Soukaina BAHAMI** | Preprocessing pipeline; DummyClassifier and Logistic Regression baselines; initial metrics and confusion matrices | [Evaluation report](reports/EVALUATION_RESULTS_SOUKAINA.md) and [evaluation script](src/evaluate.py) |
-| **Anais KAMTCHOUANG NONO** | Two advanced classifiers; hyperparameter tuning; comparison against baselines; feature importance | [Advanced-model notebook](notebooks/task3.ipynb) and [related evaluation report](reports/evaluation_anais/evaluation_report.md) |
+| **Anais KAMTCHOUANG NONO** | Two advanced classifiers; hyperparameter tuning; comparison against baselines; feature importance | [Advanced-model notebook](notebooks/task31.ipynb) and [related evaluation report](reports/evaluation_anais/evaluation_report.md) |
 | **Yutong CAO** | Evaluation protocol; grouped cross-validation; threshold analysis; final test evaluation; error analysis; results synthesis | [Decision Tree notebook](notebooks/step4_baseline_20000_team_split.ipynb) and [baseline report](reports/baseline_evaluation_20000.md) |
 
 ## Training and test data
@@ -37,5 +37,14 @@ notebooks/    Data audit, baseline and advanced-model notebooks
 src/          Reproducible audit, cleaning, splitting and evaluation scripts
 tests/        Data-quality and split checks
 figures/      EDA and modeling figures
-reports/      Data audit and model evaluation reports
+reports/      Supporting metrics, audit evidence and historical experiment outputs
+report/       Required final Moodle PDF: Report_Group_XX.pdf
 ```
+
+## Report and experimental outputs
+
+The professor's required submission report is `report/Report_Group_XX.pdf`. The separate `reports/` directory stores supporting metrics, experimental logs, intermediate analyses and reproducibility evidence used by the notebooks and Python scripts; it is **not** a second final report. Keeping that directory name avoids breaking saved paths in code and notebooks.
+
+The official five-model benchmark is reproduced with `python -m src.compare_official`; its saved evidence is `reports/official_model_comparison.md` and `.json`. The advanced-model development notebook was updated to `notebooks/task31.ipynb` on 27 November. It studies Random Forest, Gradient Boosting, soft voting and TabNet using a separate grouped internal validation protocol; those scores should not be combined with the official benchmark table without rerunning under the same folds.
+
+Before the Moodle ZIP is uploaded, replace `XX` with the assigned group number and check each teammate's governance entries.
