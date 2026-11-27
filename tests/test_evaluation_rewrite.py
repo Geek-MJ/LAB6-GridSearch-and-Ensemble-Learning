@@ -124,7 +124,7 @@ def synthetic_run(tmp_path, monkeypatch):
                              "source_extract": "synthetic", "blackout": y})
     summary = {"protocol_version": "synthetic-test-only", "partitions": {
         name: {"records": len(idx)} for name, idx in parts.items()}}
-    output, figures = tmp_path / "reports/corrected", tmp_path / "figures/corrected"
+    output, figures = tmp_path / "experiment_results/corrected", tmp_path / "figures/corrected"
     for name in ("data/processed/validated_20000.csv.gz", "data/splits/all_records_manifest.csv",
                  "data/Blackout_PowerGraph_1000.csv", "data/raw/Blackout_PowerGraph_19000.zip",
                  "src/clean_data.py", "src/split_data.py"):
@@ -202,7 +202,7 @@ def completed_fixture(output, content=b"new result"):
 
 
 def test_publication_rejects_corrupt_completed_artifact_without_touching_latest(tmp_path, monkeypatch):
-    output, figures = tmp_path / "reports", tmp_path / "figures"
+    output, figures = tmp_path / "experiment_results", tmp_path / "figures"
     monkeypatch.setattr(evaluation, "OUTPUT_DIR", output)
     monkeypatch.setattr(evaluation, "FIGURE_DIR", figures)
     run = completed_fixture(output)
@@ -218,7 +218,7 @@ def test_publication_rejects_corrupt_completed_artifact_without_touching_latest(
 
 
 def test_caught_publication_failure_restores_mirrors_and_previous_pointer(tmp_path, monkeypatch):
-    output, figures = tmp_path / "reports", tmp_path / "figures"
+    output, figures = tmp_path / "experiment_results", tmp_path / "figures"
     monkeypatch.setattr(evaluation, "OUTPUT_DIR", output)
     monkeypatch.setattr(evaluation, "FIGURE_DIR", figures)
     run = completed_fixture(output)

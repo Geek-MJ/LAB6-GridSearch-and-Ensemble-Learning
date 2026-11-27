@@ -26,7 +26,7 @@ The final data split uses approximately 80% of the records for training and 20% 
 - `tests/test_clean_data.py`, `tests/test_splits.py`, `tests/test_team_split.py`
 - `data/processed/train.csv`, `data/processed/test.csv`
 - `figures/01_target_by_extract.png` to `figures/05_feature_correlations.png`
-- `reports/data_audit.md`, `reports/cleaning.md`, `reports/team_split.md`
+- `experiment_results/data_audit.md`, `experiment_results/cleaning.md`, `experiment_results/team_split.md`
 
 **Report section:** Dataset description, data quality, exploratory analysis, cleaning decisions and train/test splitting.
 
@@ -38,12 +38,12 @@ The repository includes an evaluation script with preprocessing for Logistic Reg
 
 **Files linked to this work:**
 - `src/evaluate.py`
-- `reports/EVALUATION_RESULTS_SOUKAINA.md`
-- `reports/evaluation_anais/evaluation_report.md`
-- `reports/evaluation_anais/validation_model_comparison.csv`
-- `reports/evaluation_anais/validation_threshold_comparison.csv`
-- `reports/evaluation_anais/test_predictions.csv`
-- `reports/evaluation_anais/test_errors.csv`
+- `experiment_results/EVALUATION_RESULTS_SOUKAINA.md`
+- `experiment_results/evaluation_anais/evaluation_report.md`
+- `experiment_results/evaluation_anais/validation_model_comparison.csv`
+- `experiment_results/evaluation_anais/validation_threshold_comparison.csv`
+- `experiment_results/evaluation_anais/test_predictions.csv`
+- `experiment_results/evaluation_anais/test_errors.csv`
 
 **Report section:** Preprocessing, baseline comparisons, evaluation metrics, threshold decisions and error analysis.
 
@@ -59,8 +59,8 @@ The notebook discusses a Random Forest model using all features and a threshold 
 
 **Files:**
 - `notebooks/task3.ipynb`
-- `reports/evaluation_anais/evaluation_report.md` (shared evaluation work)
-- `reports/evaluation_anais/feature_importance.csv` (shared evaluation work)
+- `experiment_results/evaluation_anais/evaluation_report.md` (shared evaluation work)
+- `experiment_results/evaluation_anais/feature_importance.csv` (shared evaluation work)
 - `figures/evaluation_anais/random_forest_feature_importance.png` (shared evaluation work)
 
 **Report section:** Advanced classifiers, parameter tuning, feature comparisons, model selection and interpretation.
@@ -78,11 +78,11 @@ The final selected Decision Tree achieved a test F1-score of **0.9803**, with **
 **Files:**
 
 - `notebooks/step4_baseline_20000_team_split.ipynb`
-- `reports/baseline_evaluation_20000.md`
-- `reports/decision_tree_final_results.csv`
-- `reports/decision_tree_threshold_analysis.csv`
-- `reports/decision_tree_test_errors.csv`
-- `reports/decision_tree_error_feature_analysis.csv`
+- `experiment_results/baseline_evaluation_20000.md`
+- `experiment_results/decision_tree_final_results.csv`
+- `experiment_results/decision_tree_threshold_analysis.csv`
+- `experiment_results/decision_tree_test_errors.csv`
+- `experiment_results/decision_tree_error_feature_analysis.csv`
 
 **Report section:** Decision Tree baseline, grouped cross-validation, threshold analysis, final test evaluation, error analysis and interpretation.
 

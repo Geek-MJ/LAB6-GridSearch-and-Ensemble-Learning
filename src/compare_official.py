@@ -25,7 +25,7 @@ from sklearn.tree import DecisionTreeClassifier
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data" / "processed"
-RESULTS = ROOT / "reports" / "official_model_comparison.json"
+RESULTS = ROOT / "experiment_results" / "official_model_comparison.json"
 TARGET = "blackout"
 SEED = 42
 

@@ -1,7 +1,7 @@
 """Compare models on a fixed grouped split, then evaluate one frozen selection.
 
 Run from the repository root: python -m src.evaluate --jobs 2
-Completed runs are immutable under reports/corrected/runs. latest.json is the
+Completed runs are immutable under experiment_results/corrected/runs. latest.json is the
 authoritative pointer; compatible report/figure copies are published last.
 """
 from __future__ import annotations
@@ -43,7 +43,7 @@ from src.split_data import group_ids, make_splits
 ROOT = Path(__file__).resolve().parents[1]
 DATA_PATH = ROOT / "data/processed/validated_20000.csv.gz"
 MANIFEST_PATH = ROOT / "data/splits/all_records_manifest.csv"
-OUTPUT_DIR, FIGURE_DIR = ROOT / "reports/corrected", ROOT / "figures/corrected"
+OUTPUT_DIR, FIGURE_DIR = ROOT / "experiment_results/corrected", ROOT / "figures/corrected"
 TARGET, SEED = "blackout", 42
 MODEL_ORDER = ("Dummy_prior", "Logistic_regression", "Decision_tree", "Random_forest", "Hist_gradient_boosting")
 METRICS = ("accuracy", "precision", "recall", "f1", "f2", "roc_auc", "average_precision")

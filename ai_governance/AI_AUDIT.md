@@ -12,7 +12,7 @@ This file records errors we found while using AI assistance, how we corrected th
 
 **Correction:** I grouped identical complete input vectors before splitting, then divided the groups using stratification on `blackout`. All 20,000 records were retained and assigned to training or testing. I did not create a separate validation file.
 
-**Result:** `train.csv` contains **16,018** records and `test.csv` contains **3,982**. The checks found **no identical complete feature vectors across the two files**. The code and results are in `src/split_data.py`, `tests/test_team_split.py`, `notebooks/01_data_audit_executed.ipynb` and `reports/team_split.md`.
+**Result:** `train.csv` contains **16,018** records and `test.csv` contains **3,982**. The checks found **no identical complete feature vectors across the two files**. The code and results are in `src/split_data.py`, `tests/test_team_split.py`, `notebooks/01_data_audit_executed.ipynb` and `experiment_results/team_split.md`.
 
 **Limitations:** Different records may still describe related simulation conditions. The source documents also do not fully establish when every feature is measured.
 
@@ -48,7 +48,7 @@ The variable's actual type and shape were inspected in the notebook. This reveal
 **Correction and validation:**  
 The out-of-fold workflow was corrected to store predictions and probabilities in separate dictionaries keyed by model name. All three Decision Tree models were then evaluated across five grouped folds. Each model produced 16,018 out-of-fold predictions and probabilities, and the checks confirmed zero shared groups between training and validation folds.
 
-The corrected results were used in `notebooks/step4_baseline_20000_team_split.ipynb` and checked against `reports/baseline_evaluation_20000.md` and the supporting evaluation CSV files.
+The corrected results were used in `notebooks/step4_baseline_20000_team_split.ipynb` and checked against `experiment_results/baseline_evaluation_20000.md` and the supporting evaluation CSV files.
 
 The issue was corrected before the final reported test evaluation; it did not invalidate the final published metrics.
 

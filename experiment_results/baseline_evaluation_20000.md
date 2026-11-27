@@ -242,7 +242,7 @@ These results establish a strong Decision Tree baseline for comparison with the 
 
 ## 12. Reproducibility and Supporting Files
 
-The experiment outputs are saved in the `reports/` directory:
+The experiment outputs are saved in the `experiment_results/` directory:
 
 | File | Description |
 |---|---|
@@ -257,6 +257,6 @@ The main experiment notebook is:
 
 The official split methodology is documented in:
 
-- `reports/team_split.md`
+- `experiment_results/team_split.md`
 
 The earlier three-way split experiment is historical and is not mixed with the official two-file split results reported here.

@@ -52,7 +52,7 @@ The following prompts cover the main stages of my data-preparation module. They 
 >
 > Please include the actual split sizes, class distribution and verification checks in the notebook.
 
-**AI response:** I explained why ordinary row-wise stratification can place identical inputs in both partitions. The earlier overlap check found **447 test records** with complete input vectors also present in training. The saved revised two-file split groups identical **224-feature** inputs, retains every record and reports **16,018 train / 3,982 test**, with **zero exact complete-input overlap**. These are results of the saved two-file workflow, not the current three-way script. See `reports/team_split.md` and `ai_governance/AI_AUDIT.md`.
+**AI response:** I explained why ordinary row-wise stratification can place identical inputs in both partitions. The earlier overlap check found **447 test records** with complete input vectors also present in training. The saved revised two-file split groups identical **224-feature** inputs, retains every record and reports **16,018 train / 3,982 test**, with **zero exact complete-input overlap**. These are results of the saved two-file workflow, not the current three-way script. See `experiment_results/team_split.md` and `ai_governance/AI_AUDIT.md`.
 
 ### Prompt 4 — Final module verification and reproducibility
 
@@ -70,7 +70,7 @@ The following prompts cover the main stages of my data-preparation module. They 
 >
 > Keep the project files organized, use relative paths and make sure the other members can reproduce my work without changing their existing notebooks or results.
 
-**AI response:** I compared the saved audit and split reports with the current source and tests. The main inconsistency is that `src/split_data.py` now specifies an approximately **70/15/15** split using **72 bus features** and seed **2026**, whereas `reports/team_split.md` still describes an **80/20** split grouped by all 224 inputs. I recommended selecting one final protocol and rerunning the matching checks before reporting comparable model results. The source also does not fully establish feature timing or independence between related simulations. The current three-way script was reviewed, not executed in this check.
+**AI response:** I compared the saved audit and split reports with the current source and tests. The main inconsistency is that `src/split_data.py` now specifies an approximately **70/15/15** split using **72 bus features** and seed **2026**, whereas `experiment_results/team_split.md` still describes an **80/20** split grouped by all 224 inputs. I recommended selecting one final protocol and rerunning the matching checks before reporting comparable model results. The source also does not fully establish feature timing or independence between related simulations. The current three-way script was reviewed, not executed in this check.
 
 ## 2. Soukaina BAHAMI — Preprocessing and Baseline Models
 
@@ -130,4 +130,4 @@ Use the official team split (`train.csv`: 16,018 records; `test.csv`: 3,982 reco
 The final workflow used `StratifiedGroupKFold` with five folds. It verified that identical feature-vector groups did not overlap between training and validation folds. The default Decision Tree achieved the highest grouped out-of-fold F1-score among the three tested trees. Thresholds from 0.1 to 0.9 produced identical predictions because the tree returned only probabilities of 0.0 and 1.0. The final model was refitted on all training records and evaluated on the test set.
 
 **Files:**  
-`notebooks/step4_baseline_20000_team_split.ipynb`, `reports/baseline_evaluation_20000.md`, `reports/decision_tree_final_results.csv`, `reports/decision_tree_threshold_analysis.csv`, `reports/decision_tree_test_errors.csv`, `reports/decision_tree_error_feature_analysis.csv`.
+`notebooks/step4_baseline_20000_team_split.ipynb`, `experiment_results/baseline_evaluation_20000.md`, `experiment_results/decision_tree_final_results.csv`, `experiment_results/decision_tree_threshold_analysis.csv`, `experiment_results/decision_tree_test_errors.csv`, `experiment_results/decision_tree_error_feature_analysis.csv`.

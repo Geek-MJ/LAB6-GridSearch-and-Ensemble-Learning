@@ -49,5 +49,5 @@ scenario families.
 simulation scenarios, simulated rather than operational grid data, and
 previous exposure to the held-out test set.
 
-**Evidence:** `reports/official_model_comparison.json`,
-`reports/baseline_evaluation_20000.md`, `reports/team_split.md`.
+**Evidence:** `experiment_results/official_model_comparison.json`,
+`experiment_results/baseline_evaluation_20000.md`, `experiment_results/team_split.md`.

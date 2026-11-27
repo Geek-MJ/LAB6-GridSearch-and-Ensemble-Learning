@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 RAW = ROOT / "data" / "raw"
 SPLITS = ROOT / "data" / "splits"
 FIGURES = ROOT / "figures"
-REPORTS = ROOT / "reports"
+REPORTS = ROOT / "experiment_results"
 SEED = 2026
 TARGET = "blackout"
 
