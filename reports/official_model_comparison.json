@@ -1,0 +1,106 @@
+{
+  "benchmark_status": "completed_retrospective_comparison",
+  "provenance": "Reproduced from the fixed 20,000 PowerGraph IEEE-24 source records and the exact existing 16,018/3,982 team CSV files; generated official CSV Git blob IDs match committed blobs.",
+  "dataset": {
+    "rows": 20000,
+    "features": 224,
+    "train_rows": 16018,
+    "train_positive": 3240,
+    "test_rows": 3982,
+    "test_positive": 792,
+    "complete_input_overlap": 0
+  },
+  "method": {
+    "model_selection": "Highest pooled training-only grouped five-fold out-of-fold F1",
+    "folds": 5,
+    "seed": 42,
+    "group_key": "all 224 predictor values, excluding blackout",
+    "warning": "Retrospective; historical project test results already inspected"
+  },
+  "cross_validation": [
+    {
+      "model": "Dummy majority",
+      "f1": 0,
+      "recall": 0,
+      "roc_auc": 0.49995
+    },
+    {
+      "model": "Logistic regression",
+      "f1": 0.93614,
+      "recall": 0.92068,
+      "roc_auc": 0.99073
+    },
+    {
+      "model": "Decision tree",
+      "f1": 0.97101,
+      "recall": 0.9716,
+      "roc_auc": 0.98205
+    },
+    {
+      "model": "Random forest",
+      "f1": 0.95026,
+      "recall": 0.92284,
+      "roc_auc": 0.99501
+    },
+    {
+      "model": "Histogram gradient boosting",
+      "f1": 0.97582,
+      "recall": 0.96512,
+      "roc_auc": 0.99776
+    }
+  ],
+  "selected_model": "Histogram gradient boosting",
+  "retrospective_test": {
+    "decision_tree": {
+      "accuracy": 0.9922149674,
+      "f1": 0.9803174603,
+      "recall": 0.9747474747,
+      "precision": 0.98595,
+      "confusion_matrix": [
+        [
+          3179,
+          11
+        ],
+        [
+          20,
+          772
+        ]
+      ]
+    },
+    "histogram_gradient_boosting": {
+      "accuracy": 0.9924660974,
+      "f1": 0.9808429119,
+      "recall": 0.9696969697,
+      "precision": 0.992248062,
+      "confusion_matrix": [
+        [
+          3184,
+          6
+        ],
+        [
+          24,
+          768
+        ]
+      ]
+    }
+  },
+  "sensitivity_bus_72_grouped_cv": {
+    "decision_tree_f1": 0.9724628713,
+    "gradient_boosting_f1": 0.9756630265
+  },
+  "paired_test": {
+    "boosting_wrong_tree_right": 14,
+    "tree_wrong_boosting_right": 15,
+    "both_wrong": 16,
+    "both_correct": 3937,
+    "exact_mcnemar_p": 1
+  },
+  "limitations": [
+    "Pre-outcome availability of every flattened feature remains unverified",
+    "Related physical simulation scenarios may be dependent",
+    "Dataset consists of simulated rather than field observations",
+    "The previously viewed holdout is not a fresh independent test"
+  ],
+  "reproduction": "python -m src.compare_official",
+  "environment": "Python 3.x, pinned scikit-learn 1.8.0, pandas 2.2.3, numpy 2.3.5, scipy 1.17.0"
+}
