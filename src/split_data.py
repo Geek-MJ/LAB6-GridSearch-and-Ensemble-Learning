@@ -1,8 +1,9 @@
-"""Canonical, retrospective group-disjoint GridGuard protocol.
+"""Historical three-way grouped-bus GridGuard evaluation protocol.
 
-Groups are complete 72-variable bus configurations. All model families use the
-same persisted row assignments; no estimator or metric is used to choose a split.
-Historical row-random manifests remain unchanged in their existing directory.
+This module remains an input to src.evaluate and is NOT the official team
+train/test CSV reproduction. For the official two-file 80/20 procedure, use
+src.team_split. This historical workflow uses 72-variable bus groups and an
+approximately 70/15/15 split. No estimator or metric is used to choose a split.
 """
 from pathlib import Path
 import hashlib
