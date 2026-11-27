@@ -1,16 +1,7 @@
-# Evaluation
+# Evaluation workflows
 
-This script compares five models on the same grouped dataset split.
+**Official team train/test data:** Run `python -m src.team_split` to verify the two existing 80/20 CSV exports without changing them. The canonical files are `data/processed/train.csv` and `data/processed/test.csv`; model selection on this protocol uses grouped cross-validation within training data.
 
-Run from the project folder:
+**Separate historical evaluator:** `python -m src.evaluate --jobs 2` uses `src/split_data.py`, a grouped-bus three-way protocol (~70/15/15), and writes results under `reports/corrected/` and figures under `figures/corrected/`. Its results should not be directly compared with the official two-file test results.
 
-```bash
-python -m pip install -r requirements.txt
-python -m src.evaluate --jobs 2
-```
-
-The model and threshold are chosen on validation data. The test set is used at the end.
-
-Results: `reports/corrected/`. Plots: `figures/corrected/`.
-
-The data are simulated, so these scores do not prove real-grid performance.
+Install pinned packages with `python -m pip install -r requirements.txt` from the repository root. These data describe simulations and do not establish real-world blackout prediction performance.
