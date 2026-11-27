@@ -10,7 +10,7 @@ A binary classifier predicts whether a simulated scenario results in unmet elect
 
 | Owner | Assigned responsibilities | Work in this repository |
 | --- | --- | --- |
-| **Mahij Khantigiri GOSAI** | Dataset provenance; quality and leakage audit; exploratory analysis; train/test splitting | [Executed data-audit notebook](notebooks/01_data_audit_executed.ipynb), [audit](src/audit.py), [cleaning](src/clean_data.py), [team split](src/split_data.py), [audit report](reports/data_audit.md), [split report](reports/team_split.md) |
+| **Mahij Khantigiri GOSAI** | Dataset provenance; quality and leakage audit; exploratory analysis; train/test splitting | [Executed data-audit notebook](notebooks/01_data_audit_executed.ipynb), [audit](src/audit.py), [cleaning](src/clean_data.py), [team split](src/team_split.py), [audit report](reports/data_audit.md), [split report](reports/team_split.md) |
 | **Soukaina BAHAMI** | Preprocessing pipeline; DummyClassifier and Logistic Regression baselines; initial metrics and confusion matrices | [Evaluation report](reports/EVALUATION_RESULTS_SOUKAINA.md) and [evaluation script](src/evaluate.py) |
 | **Anais KAMTCHOUANG NONO** | Two advanced classifiers; hyperparameter tuning; comparison against baselines; feature importance | [Advanced-model notebook](notebooks/task3.ipynb) and [related evaluation report](reports/evaluation_anais/evaluation_report.md) |
 | **Yutong CAO** | Evaluation protocol; grouped cross-validation; threshold analysis; final test evaluation; error analysis; results synthesis | [Decision Tree notebook](notebooks/step4_baseline_20000_team_split.ipynb) and [baseline report](reports/baseline_evaluation_20000.md) |
@@ -24,9 +24,9 @@ The final data preparation uses two files, without a separate validation dataset
 
 The method groups **identical complete feature vectors**, then applies a stratified 80/20 split *to the unique groups*, assigning all 20,000 original rows to train or test. Because groups differ in size, the row counts are approximately, not exactly, 80/20. The verified cross-partition duplicate-input overlap is **zero**.
 
-**Reproduction:** Run `python -m src.split_data`. The [data-audit notebook](notebooks/01_data_audit_executed.ipynb) contains the procedure and saved results, and the [split report](reports/team_split.md) describes the checks. Model tuning and threshold selection use cross-validation within `train.csv`, with `test.csv` reserved for final evaluation.
+**Reproduction check:** Run `python -m src.team_split` to regenerate the group assignments in memory and compare every row against the existing CSVs without overwriting them. Run `python -m pytest tests/test_official_team_split.py` for regression checks. The [data-audit notebook](notebooks/01_data_audit_executed.ipynb) contains the procedure and saved results, and the [split report](reports/team_split.md) describes the checks. Model tuning and threshold selection use cross-validation within `train.csv`, with `test.csv` reserved for final evaluation.
 
-Earlier model experiments used a 70/15/15 train/validation/test split. Their manifests are kept in `data/splits/`, and their scores refer to those earlier partitions. The original source files are in `data/`; the complete validated dataset is `data/processed/validated_20000.csv.gz`.
+Earlier model experiments used a 70/15/15 train/validation/test split. `src/split_data.py` and `src/evaluate.py` still implement a separate historical grouped-bus evaluation workflow and are **not** the reproduction command for the final 80/20 team CSVs. The older manifests are kept in `data/splits/`, and their scores refer to those earlier partitions. The original source files are in `data/`; the complete validated dataset is `data/processed/validated_20000.csv.gz`.
 
 ## Repository guide
 
