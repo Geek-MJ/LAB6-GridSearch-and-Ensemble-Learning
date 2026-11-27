@@ -21,8 +21,8 @@ No separate validation file was created. Model comparisons, feature selection, h
 ## Files and checks
 
 - The splitting code and saved results are included in [the notebook](../notebooks/01_data_audit_executed.ipynb).
-- The reusable split code is in `src/split_data.py`; run `python -m src.split_data` from the repository root.
-- `tests/test_team_split.py` verifies row counts, label balance, disjoint complete input vectors and deterministic output.
+- The official two-file split is reproduced in `src/team_split.py`; run `python -m src.team_split` from the repository root. This verifies the saved CSVs row-by-row without overwriting them. `src/split_data.py` is retained for a separate historical 70/15/15 experiment.
+- `tests/test_official_team_split.py` checks the saved row counts, label balance, group separation, conflicting-label rejection and reproducibility. The older `tests/test_team_split.py` belongs to the historical three-way workflow.
 - The two output CSVs retain all 224 original features, `blackout`, and all source observations.
 
 ## Limitations
